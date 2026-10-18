@@ -65,12 +65,21 @@ details summary{cursor:pointer}
 .ct.now{border-color:var(--accent);border-width:3px}
 .colrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 #colMsg{min-height:22px;font-size:15px;color:var(--accent)}
+.fb{width:100%;text-align:center;font-size:20px;min-height:24px;padding:0 8px}
+.fb .big{font-size:60px;font-weight:700;letter-spacing:4px;margin:4px 0}
+.fb .big i{font-style:normal}
+.fb .big i.low{color:var(--accent);text-decoration:underline wavy}
+.fb .ok{color:var(--green);font-size:34px;font-weight:700}
+.fb .hint{background:#fff4e0;border:2px solid #f0c987;border-radius:12px;padding:10px;margin-top:6px;font-size:18px}
+.fb button{margin:6px}
+button.pulse{animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(71,122,91,.25)}}
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <div class="title">🇭🇺 헝가리 · 레벨 1<span>소수 덧셈 · 뺄셈</span></div>
+    <div class="title">🇭🇺 헝가리 · 레벨 1<span>소수 덧셈 · 뺄셈</span><button id="whoBtn" style="min-height:36px;font-size:14px;padding:0 10px;margin-left:10px">👤 아빠</button></div>
     <div class="tools">
       <button data-tool="pen" class="on">✏️ 펜</button>
       <button data-tool="eraser">🧽 지우개</button>
@@ -90,6 +99,8 @@ details summary{cursor:pointer}
       <h2>답을 한 칸에 숫자 하나씩</h2>
       <div class="cells" id="cells"></div>
       <p class="sub">점(.)은 이미 찍혀 있어요</p>
+      <div><button id="check" class="primary" style="font-size:22px;min-height:56px;padding:0 28px">정답 확인</button></div>
+      <div id="fb" class="fb"></div>
     </section>
   </main>
   <section id="collect" class="card" hidden>
@@ -128,6 +139,8 @@ details summary{cursor:pointer}
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
         <button id="reveal">정답 보기</button>
         <button id="selftest">문제 생성기 자체 테스트</button>
+        <button id="expAttempts">풀이 기록 내보내기</button>
+        <label><input type="checkbox" id="autoCollect" checked> 맞힌 글씨 자동 수집</label>
       </div>
       <div id="msg"></div>
     </details>
@@ -229,7 +242,7 @@ function buildCells(){
 function newProblem(){
   current=gen($('op').value); extra='';
   renderProblem(current);
-  scratch.clear(); buildCells(); renderMsg();
+  scratch.clear(); buildCells(); renderMsg(); resetSolve();
 }
 
 /* ---------- 이벤트 ---------- */
@@ -369,6 +382,107 @@ $('colRead').addEventListener('click',async()=>{
     : `헷갈려요: ${a}(${pct(p[a])}) 또는 ${b}(${pct(p[b])})?`;
 });
 window.addEventListener('resize',()=>{ if(collecting&&collectInk) collectInk.fit(); });
+
+
+/* ---------- 4.4 정답 칸 인식 + 자동 채점 ---------- */
+const AKEY='jq_attempts_v1';
+let attempts=[]; try{ attempts=JSON.parse(localStorage.getItem(AKEY)||'[]'); }catch(e){ attempts=[]; }
+function persistAttempts(){ try{ localStorage.setItem(AKEY,JSON.stringify(attempts)); return true; }catch(e){ return false; } }
+let ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null};
+function resetSolve(){ ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null}; $('fb').innerHTML=''; $('next').classList.remove('pulse'); $('check').disabled=false; }
+function syncWho(){ $('whoBtn').textContent='👤 '+curWho(); }
+$('whoBtn').addEventListener('click',()=>{ $('who').value=curWho()==='아빠'?'진윤':'아빠'; $('who').dispatchEvent(new Event('change')); });
+$('who').addEventListener('change',syncWho); syncWho();
+
+function readCells(){ // 정답 칸 5개 -> 각 칸의 읽은 숫자(빈 칸/낙서는 null)
+  return cellInks.map(ink=>{
+    const st=ink.strokes.filter(s=>s.pts.length>0); if(!st.length) return null;
+    const r=ink.c.getBoundingClientRect(), pts=st.flatMap(s=>s.pts);
+    const xs=pts.map(q=>q.x*r.width), ys=pts.map(q=>q.y*r.height);
+    if(Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))<10) return null; // 점 하나 같은 낙서는 빈 칸으로 본다
+    const img=bitmap(st,r.width,r.height), p=predict(img), o=[...p.keys()].sort((a,b)=>p[b]-p[a]);
+    return {d:o[0],conf:p[o[0]],d2:o[1],p2:p[o[1]],st,w:r.width,h:r.height,img};
+  });
+}
+function assemble(cells){ // 정수 3칸(오른쪽 정렬) + 소수 2칸(왼쪽 정렬)
+  const I=cells.slice(0,3), F=cells.slice(3,5);
+  const pi=I.map(c=>c?'1':'0').join(''), pf=F.map(c=>c?'1':'0').join('');
+  if(pi==='000'&&pf==='00') return {status:'empty'};
+  if(!['000','001','011','111'].includes(pi)) return {status:'gap',msg:'숫자는 소수점 바로 앞 칸부터 채워서 써 줘 ✏️'};
+  if(!['00','10','11'].includes(pf)) return {status:'gap',msg:'소수점 바로 뒤 칸부터 차례로 써 줘 ✏️'};
+  let ints=[],fr=[];
+  I.forEach((c,i)=>{ if(c) ints.push([i,c.d]); }); F.forEach((c,i)=>{ if(c) fr.push([i+3,c.d]); });
+  while(ints.length>1&&ints[0][1]===0) ints.shift();      // 앞쪽 0 무시
+  if(!ints.length) ints=[[null,0]];                        // 정수 칸이 비면 0으로 본다
+  while(fr.length&&fr[fr.length-1][1]===0) fr.pop();      // 뒤쪽 0 무시 (4.50 = 4.5)
+  const str=ints.map(x=>x[1]).join('')+(fr.length?'.'+fr.map(x=>x[1]).join(''):'');
+  return {status:'ok',str,ints,fr,used:[...ints.map(x=>x[0]).filter(i=>i!==null),...fr.map(x=>x[0])]};
+}
+function fbMsg(m){ $('fb').innerHTML=`<div>${m}</div>`; }
+function clearCells(){ cellInks.forEach(i=>i.clear()); }
+function fa(n){ const f=fmt(n.s,n.d); return f.i+'.'+f.f; }
+function logAttempt(decision,a,cells,exp,n){
+  attempts.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),t:new Date().toISOString(),who:curWho(),
+    op:current.op,a:fa(current.a),b:fa(current.b),expected:exp,read:a?a.str:null,decision,n,rejects:ps.rejects,ms:Date.now()-ps.t0,
+    cells:cells.map(c=>c?{d:c.d,conf:+c.conf.toFixed(3),d2:c.d2,p2:+c.p2.toFixed(3)}:null)});
+  persistAttempts();
+}
+function todayLine(){
+  const day=new Date().toLocaleDateString('sv'); const n=attempts.filter(x=>x.who===curWho()&&x.decision==='correct'&&new Date(x.t).toLocaleDateString('sv')===day).length;
+  return `<div style="font-size:14px;color:#7a766a">오늘 맞힌 문제 ${n}개</div>`;
+}
+function autoCollect(a,cells){ // 맞힌 답은 정답을 알고 있으므로 라벨이 확실하다 -> 학습 샘플로 쌓는다
+  if(!$('autoCollect').checked||samples.length>2000) return;
+  const t=new Date().toISOString();
+  a.used.forEach(i=>{ const c=cells[i]; if(!c) return;
+    samples.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),label:c.d,who:curWho(),t,w:Math.round(c.w),h:Math.round(c.h),
+      strokes:c.st.map(s=>s.pts.map(q=>[+q.x.toFixed(3),+q.y.toFixed(3),+q.p.toFixed(2)])),img:c.img,src:'solve'}); });
+  if(!persist()){ a.used.forEach(()=>samples.pop()); }
+}
+function hintFor(n,exp){
+  const dec=(exp.split('.')[1]||'').length, d=dec?`답의 소수점 아래는 ${dec}자리야`:'답은 소수점이 없는 수야';
+  if(n===1) return `소수점끼리 줄을 맞춰서 ${current.op==='+'?'더해 봐. 받아올림':'빼 봐. 받아내림'}도 확인! (${d})`;
+  return `답의 소수점 위 숫자는 ${exp.split('.')[0]}이야. 소수점 아래를 다시 계산해 보자!`;
+}
+function finishDone(){ ps.done=true; $('check').disabled=true; $('next').classList.add('pulse'); }
+async function check(){
+  if(ps.done) return;
+  try{ await loadModel(); }catch(e){ fbMsg('인식 모델을 불러오지 못했어요. 인터넷 연결을 확인해 줘'); return; }
+  const cells=readCells(), a=assemble(cells);
+  if(a.status==='empty'){ fbMsg('먼저 답을 써 보자 ✏️'); return; }
+  if(a.status==='gap'){ fbMsg(a.msg); return; }
+  const exp=ansStr(current.r);
+  if(a.str===exp){
+    ps.n++; logAttempt('correct',a,cells,exp,ps.n); autoCollect(a,cells); finishDone();
+    $('fb').innerHTML=`<div class="ok">정답! 🎉</div><div>${ps.n===1?'한 번에 맞혔어!':ps.n+'번째에 맞혔어!'}</div>`+todayLine();
+    return;
+  }
+  // 다르게 읽혔다 -> 오답으로 단정하지 않고 읽은 값을 보여주고 확인한다
+  ps.pending={a,cells,exp};
+  const part=arr=>arr.map(([i,d])=>`<i class="${i!==null&&cells[i]&&cells[i].conf<CONF_OK?'low':''}">${d}</i>`).join('');
+  const low=[...a.ints,...a.fr].some(([i])=>i!==null&&cells[i]&&cells[i].conf<CONF_OK);
+  $('fb').innerHTML=`<div>이렇게 읽었어. 맞아?</div><div class="big">${part(a.ints)+(a.fr.length?'.'+part(a.fr):'')}</div>`+(low?'<div style="font-size:14px;color:#7a766a">물결 밑줄은 잘 모르겠는 숫자야</div>':'')+
+    '<button id="yes" class="primary">맞아</button><button id="no">아니야, 다시 쓸게</button>';
+  $('yes').onclick=confirmYes; $('no').onclick=confirmNo;
+}
+function confirmYes(){
+  const {a,cells,exp}=ps.pending; ps.pending=null; ps.n++; logAttempt('wrong',a,cells,exp,ps.n);
+  if(ps.n>=3){ finishDone(); $('fb').innerHTML=`<div class="hint">괜찮아, 어려웠지? 정답은 <b>${exp}</b>이야.<br>풀이를 같이 확인해 보자.</div>`+todayLine(); return; }
+  clearCells();
+  $('fb').innerHTML=`<div class="hint">아깝다! 다시 해 보자 💪<br>${hintFor(ps.n,exp)}</div><div style="font-size:14px;color:#7a766a">남은 기회 ${3-ps.n}번</div>`;
+}
+function confirmNo(){
+  const {a,cells,exp}=ps.pending; ps.pending=null; ps.rejects++; logAttempt('reread',a,cells,exp,ps.n);
+  clearCells(); fbMsg('다시 써 줘 ✏️ 칸에 또박또박!');
+}
+$('check').addEventListener('click',check);
+async function saveJSON(name,obj){
+  const file=new File([JSON.stringify(obj)],name,{type:'application/json'});
+  try{ if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); return; } }catch(e){ if(e.name==='AbortError') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+$('expAttempts').addEventListener('click',()=>saveJSON('jinyoon-attempts-'+new Date().toISOString().slice(0,10)+'.json',{app:'jinyoon-quest',schema:1,exportedAt:new Date().toISOString(),attempts}));
+loadModel().catch(()=>{});
 
 scratch=new Ink($('scratch')); attach(scratch);
 newProblem();
