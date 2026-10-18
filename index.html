@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f6efe2">
+<meta name="apple-mobile-web-app-title" content="마법 건축">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>진윤이의 마법 건축 여행</title>
+<style>
+:root{--bg:#f6efe2;--card:#fffdf8;--ink:#2b2a33;--accent:#c8553d;--green:#477a5b;--line:#d9cdb4;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+#app{height:100dvh;display:flex;flex-direction:column;padding:10px 14px;gap:10px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto}
+.title{font-size:22px;font-weight:700}
+.title span{font-size:15px;font-weight:500;color:#6b675c;margin-left:8px}
+.tools{display:flex;gap:8px}
+button{font:inherit;font-size:17px;min-height:48px;padding:0 16px;border-radius:12px;border:2px solid var(--line);background:#fff;color:var(--ink)}
+button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+button.primary{background:var(--green);border-color:var(--green);color:#fff;font-weight:700}
+main{flex:1 1 auto;min-height:0;display:flex;gap:12px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;position:relative;overflow:hidden}
+.work{flex:3 1 0;display:flex;flex-direction:column;align-items:center;padding-top:14px}
+.hint{margin:0 0 6px;font-size:15px;color:#7a766a}
+#problem{display:grid;grid-template-columns:48px repeat(3,64px) 24px repeat(2,64px);justify-content:center}
+#problem span{height:68px;display:flex;align-items:center;justify-content:center;font-size:54px;font-variant-numeric:tabular-nums}
+#problem span.c{height:56px}
+#problem span.sg{font-size:46px;color:var(--accent)}
+#problem span.dt{font-weight:700}
+#problem .bar{grid-column:1/-1;height:4px;background:var(--ink);border-radius:2px;margin:2px 0}
+#scratch{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.answer{flex:2 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:14px}
+.answer h2{margin:0;font-size:20px}
+.cells{display:flex;align-items:flex-end;justify-content:center;gap:8px}
+.cell{position:relative;width:70px;height:96px;background:#fff;border:2px solid var(--ink);border-radius:10px}
+.cell canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;border-radius:8px}
+.cell .x{position:absolute;top:-12px;right:-12px;width:32px;height:32px;min-height:0;padding:0;border-radius:50%;font-size:14px;line-height:1;z-index:2}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--ink);margin-bottom:12px}
+.sub{font-size:14px;color:#7a766a;text-align:center;margin:0}
+footer{flex:0 0 auto;font-size:13px;color:#6b675c}
+details summary{cursor:pointer}
+.dev{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.dev button{min-height:36px;font-size:14px;padding:0 10px}
+#msg{white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="title">🇭🇺 헝가리 · 레벨 1<span>소수 덧셈 · 뺄셈</span></div>
+    <div class="tools">
+      <button data-tool="pen" class="on">✏️ 펜</button>
+      <button data-tool="eraser">🧽 지우개</button>
+      <button id="undo">↩︎ 되돌리기</button>
+      <button id="clearAll">🗑 모두 지우기</button>
+      <button id="next" class="primary">다음 문제</button>
+    </div>
+  </header>
+  <main>
+    <section class="card work" id="work">
+      <p class="hint">풀이는 여기에 자유롭게 써도 돼요</p>
+      <div id="problem"></div>
+      <canvas id="scratch"></canvas>
+    </section>
+    <section class="card answer">
+      <h2>답을 한 칸에 숫자 하나씩</h2>
+      <div class="cells" id="cells"></div>
+      <p class="sub">점(.)은 이미 찍혀 있어요</p>
+    </section>
+  </main>
+  <footer>
+    <details>
+      <summary>개발자 메뉴 (아버지용)</summary>
+      <div class="dev">
+        <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option></select></label>
+        <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
+        <button id="reveal">정답 보기</button>
+        <button id="selftest">문제 생성기 자체 테스트</button>
+      </div>
+      <div id="msg"></div>
+    </details>
+  </footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const INT_CELLS=3, DEC_CELLS=2;
+let tool='pen', lastInk=null, current=null;
+const stats={last:'-',pressure:0,ignoredTouch:0,penStrokes:0};
+
+/* ---------- 문제 생성기 (정수 x100으로 계산: 부동소수점 오차 없음) ---------- */
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+function randDec(){ // 소수 첫째/둘째 자리, 끝자리 0 없음
+  const d=rnd(1,2), ip=rnd(1,99);
+  const f=d===1 ? rnd(1,9)*10 : (()=>{let x;do{x=rnd(1,99)}while(x%10===0);return x})();
+  return {s:ip*100+f,d};
+}
+function gen(opSel){
+  const op=opSel==='mix'?(Math.random()<.5?'+':'-'):opSel;
+  for(;;){
+    let a=randDec(), b=randDec();
+    if(op==='-'){ if(a.s<=b.s) continue; }
+    const r=op==='+'?a.s+b.s:a.s-b.s;
+    if(r<=0||r>=100000) continue;
+    return {op,a,b,r};
+  }
+}
+function fmt(s,d){return {i:String(Math.floor(s/100)),f:String(s%100).padStart(2,'0').slice(0,d)}}
+function ansStr(r){const f=String(r%100).padStart(2,'0').replace(/0+$/,'');return String(Math.floor(r/100))+(f?'.'+f:'')}
+
+/* ---------- 필기 캔버스 ---------- */
+class Ink{
+  constructor(canvas){this.c=canvas;this.ctx=canvas.getContext('2d');this.strokes=[];this.cur=null;this.pid=null;this.fit();}
+  fit(){const r=this.c.getBoundingClientRect(),d=window.devicePixelRatio||1;
+    this.w=r.width;this.h=r.height;this.c.width=Math.round(r.width*d);this.c.height=Math.round(r.height*d);
+    this.ctx.setTransform(d,0,0,d,0,0);this.ctx.lineCap='round';this.ctx.lineJoin='round';this.ctx.strokeStyle='#1d2a4a';this.redraw();}
+  pt(e){const r=this.c.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height,p:e.pressure>0?e.pressure:.5}}
+  seg(a,b){const x=this.ctx;x.lineWidth=2+b.p*3;x.beginPath();x.moveTo(a.x*this.w,a.y*this.h);x.lineTo(b.x*this.w,b.y*this.h);x.stroke();}
+  dot(a){const x=this.ctx;x.fillStyle='#1d2a4a';x.beginPath();x.arc(a.x*this.w,a.y*this.h,1+a.p*2,0,7);x.fill();}
+  redraw(){this.ctx.clearRect(0,0,this.w,this.h);
+    for(const s of this.strokes){ if(s.pts.length===1)this.dot(s.pts[0]); for(let i=1;i<s.pts.length;i++)this.seg(s.pts[i-1],s.pts[i]); }}
+  erase(p){const px=p.x*this.w,py=p.y*this.h,n=this.strokes.length;
+    this.strokes=this.strokes.filter(s=>!s.pts.some(q=>Math.hypot(q.x*this.w-px,q.y*this.h-py)<16));
+    if(this.strokes.length!==n)this.redraw();}
+  clear(){this.strokes=[];this.redraw();}
+  undo(){this.strokes.pop();this.redraw();}
+}
+const allowMouse=()=>$('allowMouse').checked;
+const allowed=e=>e.pointerType==='pen'||(allowMouse()&&e.pointerType==='mouse');
+function showStats(){ $('msg').dataset.stats=`마지막 입력: ${stats.last} / 압력 ${stats.pressure.toFixed(2)} / 무시된 터치 ${stats.ignoredTouch}회 / 펜 획 ${stats.penStrokes}`; renderMsg(); }
+let extra='';
+function renderMsg(){ $('msg').textContent=($('msg').dataset.stats||'')+(extra?'\n'+extra:''); }
+
+function attach(ink){
+  const c=ink.c;
+  c.addEventListener('pointerdown',e=>{
+    stats.last=e.pointerType; stats.pressure=e.pressure||0;
+    if(!allowed(e)){ if(e.pointerType==='touch')stats.ignoredTouch++; showStats(); return; } // 손가락·손바닥은 무시
+    e.preventDefault(); c.setPointerCapture(e.pointerId); ink.pid=e.pointerId; lastInk=ink;
+    const p=ink.pt(e);
+    if(tool==='eraser'){ ink.erase(p); }
+    else{ ink.cur={pts:[p]}; ink.strokes.push(ink.cur); ink.dot(p); stats.penStrokes++; }
+    showStats();
+  });
+  c.addEventListener('pointermove',e=>{
+    if(e.pointerId!==ink.pid)return; e.preventDefault();
+    const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];
+    for(const ev of evs){ const p=ink.pt(ev); stats.pressure=ev.pressure||0;
+      if(tool==='eraser'){ ink.erase(p); }
+      else if(ink.cur){ const prev=ink.cur.pts[ink.cur.pts.length-1]; ink.cur.pts.push(p); ink.seg(prev,p); } }
+  });
+  const end=e=>{ if(e.pointerId===ink.pid){ink.pid=null;ink.cur=null;} };
+  c.addEventListener('pointerup',end); c.addEventListener('pointercancel',end);
+  c.addEventListener('contextmenu',e=>e.preventDefault());
+}
+
+/* ---------- 화면 구성 ---------- */
+let scratch, cellInks=[];
+function renderProblem(p){
+  const row=(sign,n)=>{
+    const ip=n.i.padStart(INT_CELLS,' ').split(''), fp=n.f.padEnd(DEC_CELLS,' ').split('');
+    return `<span class="sg">${sign}</span>`+ip.map(ch=>`<span>${ch.trim()}</span>`).join('')+`<span class="dt">.</span>`+fp.map(ch=>`<span>${ch.trim()}</span>`).join('');
+  };
+  const carry=Array(1+INT_CELLS+1+DEC_CELLS).fill('<span class="c"></span>').join('');
+  $('problem').innerHTML=carry+row('',fmt(p.a.s,p.a.d))+row(p.op==='+'?'+':'−',fmt(p.b.s,p.b.d))+'<i class="bar"></i>';
+}
+function buildCells(){
+  const box=$('cells'); box.innerHTML=''; cellInks=[];
+  const add=()=>{const d=document.createElement('div');d.className='cell';
+    d.innerHTML='<canvas></canvas><button class="x" aria-label="이 칸 지우기">✕</button>';box.appendChild(d);
+    const ink=new Ink(d.querySelector('canvas')); attach(ink); cellInks.push(ink);
+    d.querySelector('.x').addEventListener('click',()=>{ink.clear();});};
+  for(let i=0;i<INT_CELLS;i++)add();
+  const dt=document.createElement('div');dt.className='dot';box.appendChild(dt);
+  for(let i=0;i<DEC_CELLS;i++)add();
+}
+function newProblem(){
+  current=gen($('op').value); extra='';
+  renderProblem(current);
+  scratch.clear(); buildCells(); renderMsg();
+}
+
+/* ---------- 이벤트 ---------- */
+document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
+  tool=b.dataset.tool; document.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('on',x===b));}));
+$('undo').addEventListener('click',()=>{ if(lastInk)lastInk.undo(); });
+$('clearAll').addEventListener('click',()=>{ scratch.clear(); cellInks.forEach(i=>i.clear()); });
+$('next').addEventListener('click',newProblem);
+$('op').addEventListener('change',newProblem);
+$('reveal').addEventListener('click',()=>{ extra='정답: '+ansStr(current.r)+'  (끝자리 0 생략 표기. 4.5와 4.50 모두 정답 처리 예정)'; renderMsg(); });
+$('selftest').addEventListener('click',()=>{
+  let bad=0, n=4000;
+  for(let k=0;k<n;k++){
+    const p=gen(k%2?'+':'-'); const fa=fmt(p.a.s,p.a.d), fb=fmt(p.b.s,p.b.d);
+    const A=parseFloat(fa.i+'.'+fa.f), B=parseFloat(fb.i+'.'+fb.f);
+    const expect=Math.round((p.op==='+'?A+B:A-B)*100);
+    const ok = expect===p.r && p.r>0 && String(Math.floor(p.r/100)).length<=INT_CELLS
+      && fa.f.slice(-1)!=='0' && fb.f.slice(-1)!=='0' && (p.op==='+'||p.a.s>p.b.s)
+      && ((ansStr(p.r).split('.')[1]||'').length<=DEC_CELLS);
+    if(!ok)bad++;
+  }
+  extra=`자체 테스트 ${n}문항: 불일치 ${bad}건 ${bad?'❌':'✅'}`; renderMsg();
+});
+window.addEventListener('resize',()=>{scratch.fit();cellInks.forEach(i=>i.fit());});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+
+scratch=new Ink($('scratch')); attach(scratch);
+newProblem();
+
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+</script>
+</body>
+</html>
