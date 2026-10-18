@@ -16,7 +16,7 @@
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
   font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;overscroll-behavior:none;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
-#app{height:100dvh;display:flex;flex-direction:column;padding:10px 14px;gap:10px}
+#app{height:100dvh;display:flex;flex-direction:column;gap:10px;padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
 header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto}
 .title{font-size:22px;font-weight:700}
 .title span{font-size:15px;font-weight:500;color:#6b675c;margin-left:8px}
@@ -48,6 +48,23 @@ details summary{cursor:pointer}
 .dev{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
 .dev button{min-height:36px;font-size:14px;padding:0 10px}
 #msg{white-space:pre-wrap}
+[hidden]{display:none!important}
+#collect{flex:1 1 auto;min-height:0;display:flex;gap:28px;padding:12px 24px;align-items:center;justify-content:center}
+.colleft{display:flex;flex-direction:column;align-items:center}
+.colprompt{font-size:22px;margin:0 0 8px;text-align:center}
+.colprompt b{font-size:64px;color:var(--accent);margin-left:10px;vertical-align:middle}
+.colbox{position:relative;width:280px;height:384px;background:#fff;border:3px solid var(--ink);border-radius:16px}
+.colbox canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;border-radius:13px}
+.colside{display:flex;flex-direction:column;gap:12px;min-width:320px}
+.colside h2{margin:0;font-size:20px}
+.counts{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.ct{border:2px solid var(--line);border-radius:10px;padding:6px 0;text-align:center;font-size:22px;background:#fff}
+.ct b{display:block;font-size:15px;color:#7a766a}
+.ct.done{background:#e3f1e8;border-color:var(--green)}
+.ct.done b{color:var(--green)}
+.ct.now{border-color:var(--accent);border-width:3px}
+.colrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#colMsg{min-height:22px;font-size:15px;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -59,6 +76,7 @@ details summary{cursor:pointer}
       <button data-tool="eraser">🧽 지우개</button>
       <button id="undo">↩︎ 되돌리기</button>
       <button id="clearAll">🗑 모두 지우기</button>
+      <button id="collectBtn">✋ 숫자 모으기</button>
       <button id="next" class="primary">다음 문제</button>
     </div>
   </header>
@@ -74,6 +92,30 @@ details summary{cursor:pointer}
       <p class="sub">점(.)은 이미 찍혀 있어요</p>
     </section>
   </main>
+  <section id="collect" class="card" hidden>
+    <div class="colleft">
+      <p class="colprompt">이 숫자를 써 보자 <b id="colTarget">?</b></p>
+      <div class="colbox"><canvas id="colCanvas"></canvas></div>
+    </div>
+    <div class="colside">
+      <h2>모은 숫자 <span id="colTotal"></span></h2>
+      <div class="counts" id="counts"></div>
+      <div class="colrow">쓰는 사람
+        <select id="who"><option>진윤</option><option>아빠</option></select>
+        <span style="font-size:13px;color:#7a766a">(진윤이 글씨만 학습에 써요)</span>
+      </div>
+      <div class="colrow">
+        <button id="colClear">지우기</button>
+        <button id="colSave" class="primary">저장하고 다음</button>
+      </div>
+      <div class="colrow">
+        <button id="colUndo">방금 저장 취소</button>
+        <button id="colExport">내보내기</button>
+        <button id="colReset">전부 삭제</button>
+      </div>
+      <div id="colMsg"></div>
+    </div>
+  </section>
   <footer>
     <details>
       <summary>개발자 메뉴 (아버지용)</summary>
@@ -209,6 +251,89 @@ $('selftest').addEventListener('click',()=>{
 });
 window.addEventListener('resize',()=>{scratch.fit();cellInks.forEach(i=>i.fit());});
 document.addEventListener('gesturestart',e=>e.preventDefault());
+
+
+/* ---------- 4.2 숫자 샘플 수집 ---------- */
+const SKEY='jq_samples_v1', GOAL=20;
+let samples=[], collectInk=null, target=null, collecting=false, colTimer=null;
+try{ samples=JSON.parse(localStorage.getItem(SKEY)||'[]'); }catch(e){ samples=[]; }
+function persist(){ try{ localStorage.setItem(SKEY,JSON.stringify(samples)); return true; }catch(e){ return false; } }
+function flash(t){ $('colMsg').textContent=t; clearTimeout(colTimer); colTimer=setTimeout(()=>{$('colMsg').textContent='';},3000); }
+const curWho=()=>$('who').value;
+function counts(){ const c=Array(10).fill(0); samples.forEach(s=>{ if(s.who===curWho()) c[s.label]++; }); return c; }
+function nextTarget(){ // 가장 적게 모인 숫자를 우선(직전 숫자는 피함)
+  const c=counts(), m=Math.min(...c);
+  let cand=[...c.keys()].filter(d=>c[d]===m && d!==target);
+  if(!cand.length) cand=[...c.keys()].filter(d=>c[d]===m);
+  target=cand[Math.floor(Math.random()*cand.length)];
+}
+function renderCollect(){
+  const c=counts();
+  $('colTarget').textContent=target;
+  $('colTotal').textContent=`(${curWho()} ${c.reduce((a,b)=>a+b,0)}장 / 목표 ${GOAL*10}장)`;
+  $('counts').innerHTML=c.map((n,d)=>`<div class="ct${n>=GOAL?' done':''}${d===target?' now':''}">${d}<b>${n}/${GOAL}</b></div>`).join('');
+}
+// MNIST 방식: 글씨 영역을 20px로 맞춰 28x28 중앙에 배치, 알파값 0~255 784개
+function bitmap(strokes,w,h){
+  const pts=strokes.flatMap(s=>s.pts); if(!pts.length) return null;
+  const xs=pts.map(p=>p.x*w), ys=pts.map(p=>p.y*h);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+  const sc=20/Math.max(x1-x0,y1-y0,1);
+  const ox=14-(x0+x1)/2*sc, oy=14-(y0+y1)/2*sc;
+  const cv=document.createElement('canvas'); cv.width=cv.height=28;
+  const c=cv.getContext('2d'); c.lineCap='round'; c.lineJoin='round'; c.strokeStyle='#fff'; c.fillStyle='#fff'; c.lineWidth=2;
+  const T=p=>[p.x*w*sc+ox, p.y*h*sc+oy];
+  for(const s of strokes){
+    if(s.pts.length===1){ const [x,y]=T(s.pts[0]); c.beginPath(); c.arc(x,y,1,0,7); c.fill(); continue; }
+    c.beginPath(); s.pts.forEach((p,i)=>{ const [x,y]=T(p); i?c.lineTo(x,y):c.moveTo(x,y); }); c.stroke();
+  }
+  const d=c.getImageData(0,0,28,28).data, out=[]; for(let i=0;i<784;i++) out.push(d[i*4+3]); return out;
+}
+function setCollect(on){
+  collecting=on;
+  $('collectBtn').classList.toggle('on',on);
+  $('collectBtn').textContent=on?'↩︎ 문제 풀기로':'✋ 숫자 모으기';
+  document.querySelector('main').hidden=on; $('collect').hidden=!on; $('next').hidden=on;
+  tool='pen'; document.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('on',x.dataset.tool==='pen'));
+  if(on){
+    if(!collectInk){ collectInk=new Ink($('colCanvas')); attach(collectInk); } else collectInk.fit();
+    if(target===null) nextTarget();
+    renderCollect();
+  } else { scratch.fit(); cellInks.forEach(i=>i.fit()); }
+}
+$('collectBtn').addEventListener('click',()=>setCollect(!collecting));
+$('who').addEventListener('change',()=>{ target=null; nextTarget(); renderCollect(); });
+$('colClear').addEventListener('click',()=>collectInk&&collectInk.clear());
+$('colSave').addEventListener('click',()=>{
+  const st=collectInk.strokes.filter(s=>s.pts.length>0);
+  if(!st.length){ flash('먼저 숫자를 써 주세요'); return; }
+  const r=collectInk.c.getBoundingClientRect();
+  samples.push({ id:Date.now()+'-'+Math.random().toString(36).slice(2,6), label:target, who:curWho(),
+    t:new Date().toISOString(), w:Math.round(r.width), h:Math.round(r.height),
+    strokes:st.map(s=>s.pts.map(q=>[+q.x.toFixed(3),+q.y.toFixed(3),+q.p.toFixed(2)])),
+    img:bitmap(st,r.width,r.height) });
+  if(!persist()){ samples.pop(); flash('저장 공간 문제로 저장하지 못했어요'); return; }
+  collectInk.clear(); nextTarget(); renderCollect();
+});
+$('colUndo').addEventListener('click',()=>{
+  for(let i=samples.length-1;i>=0;i--){ if(samples[i].who===curWho()){ const s=samples.splice(i,1)[0]; persist(); target=s.label; renderCollect(); flash('방금 저장한 숫자를 취소했어요'); return; } }
+  flash('취소할 숫자가 없어요');
+});
+$('colReset').addEventListener('click',()=>{
+  if(!samples.length){ flash('삭제할 것이 없어요'); return; }
+  if(confirm(`모은 숫자 ${samples.length}장(진윤+아빠)을 전부 삭제할까요? 내보내기를 먼저 하세요.`)){ samples=[]; persist(); target=null; nextTarget(); renderCollect(); }
+});
+$('colExport').addEventListener('click',async()=>{
+  if(!samples.length){ flash('내보낼 숫자가 없어요'); return; }
+  const payload={app:'jinyoon-quest',schema:1,exportedAt:new Date().toISOString(),img:'28x28 alpha 0-255 (MNIST-style, bbox 20px centered)',samples};
+  const name='jinyoon-digit-samples-'+new Date().toISOString().slice(0,10)+'.json';
+  const file=new File([JSON.stringify(payload)],name,{type:'application/json'});
+  try{ if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); return; } }
+  catch(e){ if(e.name==='AbortError') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+});
+window.addEventListener('resize',()=>{ if(collecting&&collectInk) collectInk.fit(); });
 
 scratch=new Ink($('scratch')); attach(scratch);
 newProblem();
