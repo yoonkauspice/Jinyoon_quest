@@ -26,7 +26,7 @@ button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 button.primary{background:var(--green);border-color:var(--green);color:#fff;font-weight:700}
 main{flex:1 1 auto;min-height:0;display:flex;gap:12px}
 .card{background:var(--card);border:2px solid var(--line);border-radius:18px;position:relative;overflow:hidden}
-.work{flex:3 1 0;display:flex;flex-direction:column;align-items:center;padding-top:14px}
+.work{flex:2 1 0;min-width:420px;display:flex;flex-direction:column;align-items:center;padding-top:14px}
 .hint{margin:0 0 6px;font-size:15px;color:#7a766a}
 #problem{display:grid;grid-template-columns:48px repeat(3,64px) 24px repeat(2,64px);justify-content:center}
 #problem span{height:68px;display:flex;align-items:center;justify-content:center;font-size:54px;font-variant-numeric:tabular-nums}
@@ -35,10 +35,10 @@ main{flex:1 1 auto;min-height:0;display:flex;gap:12px}
 #problem span.dt{font-weight:700}
 #problem .bar{grid-column:1/-1;height:4px;background:var(--ink);border-radius:2px;margin:2px 0}
 #scratch{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
-.answer{flex:2 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:14px}
+.answer{flex:3 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:14px}
 .answer h2{margin:0;font-size:20px}
 .cells{display:flex;align-items:flex-end;justify-content:center;gap:8px}
-.cell{position:relative;width:70px;height:96px;background:#fff;border:2px solid var(--ink);border-radius:10px}
+.cell{position:relative;width:96px;height:128px;background:#fff;border:2px solid var(--ink);border-radius:10px}
 .cell canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;border-radius:8px}
 .cell .x{position:absolute;top:-12px;right:-12px;width:32px;height:32px;min-height:0;padding:0;border-radius:50%;font-size:14px;line-height:1;z-index:2}
 .dot{width:14px;height:14px;border-radius:50%;background:var(--ink);margin-bottom:12px}
@@ -388,8 +388,8 @@ window.addEventListener('resize',()=>{ if(collecting&&collectInk) collectInk.fit
 const AKEY='jq_attempts_v1';
 let attempts=[]; try{ attempts=JSON.parse(localStorage.getItem(AKEY)||'[]'); }catch(e){ attempts=[]; }
 function persistAttempts(){ try{ localStorage.setItem(AKEY,JSON.stringify(attempts)); return true; }catch(e){ return false; } }
-let ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null};
-function resetSolve(){ ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null}; $('fb').innerHTML=''; $('next').classList.remove('pulse'); $('check').disabled=false; }
+let ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null,rej:[]};
+function resetSolve(){ ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null,rej:[]}; $('fb').innerHTML=''; $('next').classList.remove('pulse'); $('check').disabled=false; }
 function syncWho(){ $('whoBtn').textContent='👤 '+curWho(); }
 $('whoBtn').addEventListener('click',()=>{ $('who').value=curWho()==='아빠'?'진윤':'아빠'; $('who').dispatchEvent(new Event('change')); });
 $('who').addEventListener('change',syncWho); syncWho();
@@ -439,6 +439,16 @@ function autoCollect(a,cells){ // 맞힌 답은 정답을 알고 있으므로 �
       strokes:c.st.map(s=>s.pts.map(q=>[+q.x.toFixed(3),+q.y.toFixed(3),+q.p.toFixed(2)])),img:c.img,src:'solve'}); });
   if(!persist()){ a.used.forEach(()=>samples.pop()); }
 }
+function harvestRejected(a){ // '아니야'로 거절된 칸 = 모델이 틀리게 읽은 사례. 최종 정답의 자리별 숫자를 라벨로 쓴다
+  if(!$('autoCollect').checked||samples.length>2000||!ps.rej.length) return;
+  const lab={}; [...a.ints,...a.fr].forEach(([i,d])=>{ if(i!==null) lab[i]=d; });
+  const key=JSON.stringify(a.used), t=new Date().toISOString(); let n=0;
+  ps.rej.forEach(r=>{ if(JSON.stringify(r.used)!==key) return;      // 칸 배치가 같을 때만 (라벨 오염 방지)
+    r.used.forEach(i=>{ const c=r.cells[i]; if(!c) return;
+      samples.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),label:lab[i],who:curWho(),t,w:Math.round(c.w),h:Math.round(c.h),
+        strokes:c.st.map(s=>s.pts.map(q=>[+q.x.toFixed(3),+q.y.toFixed(3),+q.p.toFixed(2)])),img:c.img,src:'solve-rej',read:c.d,conf:+c.conf.toFixed(3)}); n++; }); });
+  if(n&&!persist()){ for(let k=0;k<n;k++) samples.pop(); }
+}
 function hintFor(n,exp){
   const dec=(exp.split('.')[1]||'').length, d=dec?`답의 소수점 아래는 ${dec}자리야`:'답은 소수점이 없는 수야';
   if(n===1) return `소수점끼리 줄을 맞춰서 ${current.op==='+'?'더해 봐. 받아올림':'빼 봐. 받아내림'}도 확인! (${d})`;
@@ -453,7 +463,7 @@ async function check(){
   if(a.status==='gap'){ fbMsg(a.msg); return; }
   const exp=ansStr(current.r);
   if(a.str===exp){
-    ps.n++; logAttempt('correct',a,cells,exp,ps.n); autoCollect(a,cells); finishDone();
+    ps.n++; logAttempt('correct',a,cells,exp,ps.n); autoCollect(a,cells); harvestRejected(a); finishDone();
     $('fb').innerHTML=`<div class="ok">정답! 🎉</div><div>${ps.n===1?'한 번에 맞혔어!':ps.n+'번째에 맞혔어!'}</div>`+todayLine();
     return;
   }
@@ -473,6 +483,7 @@ function confirmYes(){
 }
 function confirmNo(){
   const {a,cells,exp}=ps.pending; ps.pending=null; ps.rejects++; logAttempt('reread',a,cells,exp,ps.n);
+  ps.rej.push({used:a.used.slice(),cells}); // 같은 문제를 나중에 맞히면 정답 숫자를 라벨로 붙여 학습 샘플로 쓴다
   clearCells(); fbMsg('다시 써 줘 ✏️ 칸에 또박또박!');
 }
 $('check').addEventListener('click',check);
