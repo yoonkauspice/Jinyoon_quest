@@ -101,7 +101,7 @@ details summary{cursor:pointer}
       <h2>모은 숫자 <span id="colTotal"></span></h2>
       <div class="counts" id="counts"></div>
       <div class="colrow">쓰는 사람
-        <select id="who"><option>진윤</option><option>아빠</option></select>
+        <select id="who"><option>아빠</option><option>진윤</option></select>
         <span style="font-size:13px;color:#7a766a">(진윤이 글씨만 학습에 써요)</span>
       </div>
       <div class="colrow">
@@ -254,7 +254,7 @@ document.addEventListener('gesturestart',e=>e.preventDefault());
 
 
 /* ---------- 4.2 숫자 샘플 수집 ---------- */
-const SKEY='jq_samples_v1', GOAL=20;
+const SKEY='jq_samples_v1'; const goal=()=>curWho()==='진윤'?20:10;
 let samples=[], collectInk=null, target=null, collecting=false, colTimer=null;
 try{ samples=JSON.parse(localStorage.getItem(SKEY)||'[]'); }catch(e){ samples=[]; }
 function persist(){ try{ localStorage.setItem(SKEY,JSON.stringify(samples)); return true; }catch(e){ return false; } }
@@ -270,8 +270,8 @@ function nextTarget(){ // 가장 적게 모인 숫자를 우선(직전 숫자는
 function renderCollect(){
   const c=counts();
   $('colTarget').textContent=target;
-  $('colTotal').textContent=`(${curWho()} ${c.reduce((a,b)=>a+b,0)}장 / 목표 ${GOAL*10}장)`;
-  $('counts').innerHTML=c.map((n,d)=>`<div class="ct${n>=GOAL?' done':''}${d===target?' now':''}">${d}<b>${n}/${GOAL}</b></div>`).join('');
+  $('colTotal').textContent=`(${curWho()} ${c.reduce((a,b)=>a+b,0)}장 / 목표 ${goal()*10}장)`;
+  $('counts').innerHTML=c.map((n,d)=>`<div class="ct${n>=goal()?' done':''}${d===target?' now':''}">${d}<b>${n}/${goal()}</b></div>`).join('');
 }
 // MNIST 방식: 글씨 영역을 20px로 맞춰 28x28 중앙에 배치, 알파값 0~255 784개
 function bitmap(strokes,w,h){
