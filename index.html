@@ -113,6 +113,10 @@ details summary{cursor:pointer}
         <button id="colExport">내보내기</button>
         <button id="colReset">전부 삭제</button>
       </div>
+      <div class="colrow">
+        <button id="colRead">🔍 읽어 보기</button>
+        <span id="colPred" style="font-size:20px"></span>
+      </div>
       <div id="colMsg"></div>
     </div>
   </section>
@@ -303,7 +307,7 @@ function setCollect(on){
 }
 $('collectBtn').addEventListener('click',()=>setCollect(!collecting));
 $('who').addEventListener('change',()=>{ target=null; nextTarget(); renderCollect(); });
-$('colClear').addEventListener('click',()=>collectInk&&collectInk.clear());
+$('colClear').addEventListener('click',()=>{ collectInk&&collectInk.clear(); $('colPred').textContent=''; });
 $('colSave').addEventListener('click',()=>{
   const st=collectInk.strokes.filter(s=>s.pts.length>0);
   if(!st.length){ flash('먼저 숫자를 써 주세요'); return; }
@@ -313,7 +317,7 @@ $('colSave').addEventListener('click',()=>{
     strokes:st.map(s=>s.pts.map(q=>[+q.x.toFixed(3),+q.y.toFixed(3),+q.p.toFixed(2)])),
     img:bitmap(st,r.width,r.height) });
   if(!persist()){ samples.pop(); flash('저장 공간 문제로 저장하지 못했어요'); return; }
-  collectInk.clear(); nextTarget(); renderCollect();
+  collectInk.clear(); $('colPred').textContent=''; nextTarget(); renderCollect();
 });
 $('colUndo').addEventListener('click',()=>{
   for(let i=samples.length-1;i>=0;i--){ if(samples[i].who===curWho()){ const s=samples.splice(i,1)[0]; persist(); target=s.label; renderCollect(); flash('방금 저장한 숫자를 취소했어요'); return; } }
@@ -332,6 +336,37 @@ $('colExport').addEventListener('click',async()=>{
   catch(e){ if(e.name==='AbortError') return; }
   const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=name; document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+});
+
+/* ---------- 4.3 숫자 인식 (브라우저 안, 오프라인) ---------- */
+let MODEL=null;
+async function loadModel(){
+  if(MODEL) return MODEL;
+  const m=await (await fetch('model.json')).json();
+  const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
+  MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
+  return MODEL;
+}
+function predict(img){ // img: 784개(0~255) -> 확률 10개
+  const M=MODEL,H=M.H,h=new Float32Array(H);
+  for(let j=0;j<H;j++)h[j]=M.b1[j];
+  for(let i=0;i<784;i++){const v=img[i]/255; if(v===0)continue; const o=i*H*1, f=v*M.s1; for(let j=0;j<H;j++)h[j]+=f*M.w1[o+j];}
+  const z=new Float32Array(10); for(let k=0;k<10;k++)z[k]=M.b2[k];
+  for(let j=0;j<H;j++){const v=h[j]>0?h[j]:0; if(v===0)continue; const f=v*M.s2, o=j*10; for(let k=0;k<10;k++)z[k]+=f*M.w2[o+k];}
+  const mx=Math.max(...z); let sum=0; const e=[...z].map(x=>{const t=Math.exp(x-mx);sum+=t;return t;});
+  return e.map(t=>t/sum);
+}
+const CONF_OK=0.85; // 이보다 낮으면 "이 숫자 맞아?" 되묻기 (4.4에서 값 조정)
+$('colRead').addEventListener('click',async()=>{
+  const st=collectInk.strokes.filter(s=>s.pts.length>0);
+  if(!st.length){ flash('먼저 숫자를 써 주세요'); return; }
+  try{ await loadModel(); }catch(e){ flash('인식 모델을 불러오지 못했어요'); return; }
+  const r=collectInk.c.getBoundingClientRect(), p=predict(bitmap(st,r.width,r.height));
+  const ord=[...p.keys()].sort((a,b)=>p[b]-p[a]), a=ord[0], b=ord[1];
+  const pct=x=>Math.round(x*100)+'%';
+  $('colPred').textContent = p[a]>=CONF_OK
+    ? `${a} (확신 ${pct(p[a])})${a===target?' ✅':' ❌ 목표는 '+target}`
+    : `헷갈려요: ${a}(${pct(p[a])}) 또는 ${b}(${pct(p[b])})?`;
 });
 window.addEventListener('resize',()=>{ if(collecting&&collectInk) collectInk.fit(); });
 
