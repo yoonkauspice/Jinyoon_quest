@@ -73,13 +73,36 @@ details summary{cursor:pointer}
 .fb .hint{background:#fff4e0;border:2px solid #f0c987;border-radius:12px;padding:10px;margin-top:6px;font-size:18px}
 .fb button{margin:6px}
 button.pulse{animation:pulse 1s infinite}
+/* v0.8: 가로식(분수) 문제 + 대분수 답안 칸 */
+main[data-mode=expr] .work{flex:3 1 0;min-width:0}
+main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
+#problem.expr{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 8px;padding:4px 16px;font-size:42px;line-height:1;grid-template-columns:none}
+#problem.expr span{height:auto;font-size:inherit}
+.expr .a{display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
+.expr .op{color:var(--accent);padding:0 6px;font-size:.95em}
+.expr .grp{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.expr .par{font-size:1.7em;font-weight:200;line-height:1}
+.fr{display:inline-flex;flex-direction:column;align-items:center;font-size:.78em;line-height:1.12;margin:0 2px;font-variant-numeric:tabular-nums}
+.fr i{font-style:normal;padding:0 5px;min-width:1.2em;text-align:center}
+.fr i:first-child{border-bottom:.07em solid var(--ink)}
+.mx{display:inline-flex;align-items:center;gap:3px}
+.mx b{font-weight:500;font-size:1.05em}
+.cells.mixed{align-items:center;gap:22px}
+.cells.mixed .cell{width:84px;height:108px}
+.wg,.fgrow{display:flex;gap:8px}
+.fg{display:flex;flex-direction:column;align-items:center;gap:6px}
+.fbar{display:block;width:100%;height:5px;background:var(--ink);border-radius:3px}
+.fb .big .fr{font-size:.7em;vertical-align:middle}
+.fb .big .mx{vertical-align:middle}
+.fb .ans{font-size:30px;font-weight:700}
+.fb .ans .fr{font-size:.8em;vertical-align:middle}
 @keyframes pulse{50%{box-shadow:0 0 0 8px rgba(71,122,91,.25)}}
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <div class="title">🇭🇺 헝가리 · 레벨 1<span>소수 덧셈 · 뺄셈</span><button id="whoBtn" style="min-height:36px;font-size:14px;padding:0 10px;margin-left:10px">👤 아빠</button></div>
+    <div class="title">🇭🇺 헝가리 · 레벨 1<span><span id="lvl">소수 덧셈 · 뺄셈</span><button id="whoBtn" style="min-height:36px;font-size:14px;padding:0 10px;margin-left:10px">👤 아빠</button></div>
     <div class="tools">
       <button data-tool="pen" class="on">✏️ 펜</button>
       <button data-tool="eraser">🧽 지우개</button>
@@ -89,16 +112,16 @@ button.pulse{animation:pulse 1s infinite}
       <button id="next" class="primary">다음 문제</button>
     </div>
   </header>
-  <main>
+  <main data-mode="vert">
     <section class="card work" id="work">
       <p class="hint">풀이는 여기에 자유롭게 써도 돼요</p>
       <div id="problem"></div>
       <canvas id="scratch"></canvas>
     </section>
     <section class="card answer">
-      <h2>답을 한 칸에 숫자 하나씩</h2>
+      <h2 id="ansTitle">답을 한 칸에 숫자 하나씩</h2>
       <div class="cells" id="cells"></div>
-      <p class="sub">점(.)은 이미 찍혀 있어요</p>
+      <p class="sub" id="ansSub">점(.)은 이미 찍혀 있어요</p>
       <div><button id="check" class="primary" style="font-size:22px;min-height:56px;padding:0 28px">정답 확인</button></div>
       <div id="fb" class="fb"></div>
     </section>
@@ -133,9 +156,9 @@ button.pulse{animation:pulse 1s infinite}
   </section>
   <footer>
     <details>
-      <summary>개발자 메뉴 (아버지용)</summary>
+      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.8</span></summary>
       <div class="dev">
-        <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option></select></label>
+        <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option></select></label>
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
         <button id="reveal">정답 보기</button>
         <button id="selftest">문제 생성기 자체 테스트</button>
@@ -172,6 +195,58 @@ function gen(opSel){
 }
 function fmt(s,d){return {i:String(Math.floor(s/100)),f:String(s%100).padStart(2,'0').slice(0,d)}}
 function ansStr(r){const f=String(r%100).padStart(2,'0').replace(/0+$/,'');return String(Math.floor(r/100))+(f?'.'+f:'')}
+
+/* ---------- v0.8 분수·소수 혼합 (유리수 정확 계산) ---------- */
+const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){const t=a%b;a=b;b=t;}return a;};
+function Fr(n,d=1){ if(d===0) throw new Error('div0'); if(d<0){n=-n;d=-d;} const g=gcd(n,d)||1; n/=g; d/=g; if(Math.abs(n)>1e9||d>1e9) throw new Error('big'); return {n,d}; }
+const fadd=(x,y)=>Fr(x.n*y.d+y.n*x.d,x.d*y.d), fsub=(x,y)=>Fr(x.n*y.d-y.n*x.d,x.d*y.d), fmul=(x,y)=>Fr(x.n*y.n,x.d*y.d), fdiv=(x,y)=>Fr(x.n*y.d,x.d*y.n);
+const feq=(x,y)=>x.n===y.n&&x.d===y.d;
+const PREC={'+':1,'−':1,'×':2,'÷':2};
+function evalT(t){
+  if(t.k==='num') return t.v;
+  const a=evalT(t.l), b=evalT(t.r); let r;
+  if(t.op==='+') r=fadd(a,b); else if(t.op==='−'){ r=fsub(a,b); if(r.n<=0) throw new Error('neg'); }
+  else if(t.op==='×') r=fmul(a,b); else r=fdiv(a,b);
+  if(r.d>5000||r.n>5000) throw new Error('ugly');   // 중간 계산이 너무 복잡한 문제는 버린다
+  return r;
+}
+const pick=a=>a[rnd(0,a.length-1)];
+const decStr=h=>{ let x=String(h%100).padStart(2,'0').replace(/0+$/,''); return String(Math.floor(h/100))+(x?'.'+x:''); };
+const DENS=[2,3,4,5,6,7,8,9,10,12,15,20,24];
+function coprimeNum(d){ for(;;){ const n=rnd(1,d-1); if(gcd(n,d)===1) return n; } }
+function oDec(){ const two=[25,75,5,15,35,45,55,65,85,95,125,135,175,225,275,325]; const h=Math.random()<.4?pick(two):(()=>{let x;do{x=rnd(1,49)*10}while(x%100===0);return x})();
+  return {k:'num',form:'dec',v:Fr(h,100),txt:decStr(h)}; }
+function oFrac(){ const d=pick(DENS), n=coprimeNum(d); return {k:'num',form:'frac',v:Fr(n,d),n,d,txt:n+'/'+d}; }
+function oMixed(){ const d=pick([2,3,4,5,6,8,10,12]), n=coprimeNum(d), w=rnd(1,6); return {k:'num',form:'mixed',v:Fr(w*d+n,d),w,n,d,txt:w+' '+n+'/'+d}; }
+function oInt(){ const x=rnd(2,9); return {k:'num',form:'int',v:Fr(x,1),txt:String(x)}; }
+function operands(k){ for(;;){ const a=[]; for(let i=0;i<k;i++){ const r=Math.random(); a.push(r<.34?oDec():r<.62?oFrac():r<.9?oMixed():oInt()); }
+  if(a.some(x=>x.form==='dec')&&a.some(x=>x.form==='frac'||x.form==='mixed')) return a; } }
+const B=(op,l,r,paren)=>({k:'bin',op,l,r,paren:!!paren});
+const OPS=['+','−','×','÷'];
+function needParens(t){ if(t.k==='num') return; for(const [side,c] of [['l',t.l],['r',t.r]]){ if(c.k==='bin'){
+    if(PREC[c.op]<PREC[t.op]||(side==='r'&&PREC[c.op]===PREC[t.op]&&(t.op==='−'||t.op==='÷'))) c.paren=true; needParens(c); } } }
+const okAns=v=>v.n>0&&v.n<=99&&v.d<=30&&v.n/v.d<60;
+function buildTree(level){
+  if(level==='f2'){ const [a,b]=operands(2); return B(pick(OPS),a,b); }
+  if(level==='f3'){ const [a,b,c]=operands(3), o1=pick(OPS), o2=pick(OPS); return Math.random()<.5?B(o2,B(o1,a,b),c):B(o1,a,B(o2,b,c)); }
+  const sh=pick(['P1','P2','P3']), pm=()=>pick(['+','−']), md=()=>pick(['×','÷']);
+  if(sh==='P1'){ const [a,b,c]=operands(3); return B(md(),B(pm(),a,b,true),c); }
+  if(sh==='P2'){ const [a,b,c]=operands(3); return B(pick(['×','÷','+','−']),a,B(pm(),b,c,true)); }
+  const [a,b,c,d]=operands(4); return B(md(),B(pm(),a,b,true),B(pm(),c,d,true));
+}
+function exprText(t){ if(t.k==='num') return t.txt; const x=exprText(t.l)+' '+t.op+' '+exprText(t.r); return t.paren?'('+x+')':x; }
+const frHTML=(n,d)=>`<span class="fr"><i>${n}</i><i>${d}</i></span>`;
+const numHTML=t=>t.form==='frac'?`<span class="a">${frHTML(t.n,t.d)}</span>`:t.form==='mixed'?`<span class="a mx"><b>${t.w}</b>${frHTML(t.n,t.d)}</span>`:`<span class="a">${t.txt}</span>`;
+function exprHTML(t){ if(t.k==='num') return numHTML(t); const x=exprHTML(t.l)+`<span class="op">${t.op}</span>`+exprHTML(t.r);
+  return t.paren?`<span class="grp"><span class="par">(</span>${x}<span class="par">)</span></span>`:x; }
+function genFrac(level){
+  for(let i=0;i<20000;i++){
+    try{ const t=buildTree(level); needParens(t); const v=evalT(t); if(!okAns(v)) continue;
+      return {kind:'expr',op:level,tree:t,ans:v,exprTxt:exprText(t),field:{type:'mixed',whole:2,num:2,den:2}}; }catch(e){}
+  } throw new Error('문제 생성 실패');
+}
+function ansText(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return w?`${w} ${r}/${v.d}`:`${v.n}/${v.d}`; }
+function ansHTML(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return (w?`<span class="mx"><b>${w}</b>${frHTML(r,v.d)}</span>`:frHTML(v.n,v.d)); }
 
 /* ---------- 필기 캔버스 ---------- */
 class Ink{
@@ -231,18 +306,38 @@ function renderProblem(p){
 }
 function buildCells(){
   const box=$('cells'); box.innerHTML=''; cellInks=[];
-  const add=()=>{const d=document.createElement('div');d.className='cell';
-    d.innerHTML='<canvas></canvas><button class="x" aria-label="이 칸 지우기">✕</button>';box.appendChild(d);
-    const ink=new Ink(d.querySelector('canvas')); attach(ink); cellInks.push(ink);
+  const f=current.field; box.className='cells'+(f.type==='mixed'?' mixed':'');
+  const mk=(parent,role)=>{const d=document.createElement('div');d.className='cell';
+    d.innerHTML='<canvas></canvas><button class="x" aria-label="이 칸 지우기">✕</button>';parent.appendChild(d);
+    const ink=new Ink(d.querySelector('canvas')); ink.role=role; attach(ink); cellInks.push(ink);
     d.querySelector('.x').addEventListener('click',()=>{ink.clear();});};
-  for(let i=0;i<INT_CELLS;i++)add();
-  const dt=document.createElement('div');dt.className='dot';box.appendChild(dt);
-  for(let i=0;i<DEC_CELLS;i++)add();
+  if(f.type==='dec'){
+    for(let i=0;i<f.int;i++)mk(box,'int');
+    const dt=document.createElement('div');dt.className='dot';box.appendChild(dt);
+    for(let i=0;i<f.dec;i++)mk(box,'dec');
+  } else {
+    const wg=document.createElement('div');wg.className='wg';box.appendChild(wg);
+    const fg=document.createElement('div');fg.className='fg';box.appendChild(fg);
+    const rn=document.createElement('div');rn.className='fgrow';const bar=document.createElement('i');bar.className='fbar';const rd=document.createElement('div');rd.className='fgrow';
+    fg.appendChild(rn);fg.appendChild(bar);fg.appendChild(rd);
+    for(let i=0;i<f.whole;i++)mk(wg,'whole');
+    for(let i=0;i<f.num;i++)mk(rn,'num');
+    for(let i=0;i<f.den;i++)mk(rd,'den');
+  }
+}
+function renderAny(){
+  const ex=current.kind==='expr';
+  document.querySelector('main').dataset.mode=ex?'expr':'vert';
+  $('problem').className=ex?'expr':'';
+  $('lvl').textContent=ex?'소수·분수 혼합 계산':'소수 덧셈 · 뺄셈';
+  $('ansTitle').textContent=ex?'답을 분수로 써 줘 (정수 · 분자 / 분모)':'답을 한 칸에 숫자 하나씩';
+  $('ansSub').textContent=ex?'자연수면 왼쪽 칸에만, 진분수면 위·아래 칸에만 써도 돼요. 약분까지 해서 써 줘!':'점(.)은 이미 찍혀 있어요';
+  if(ex) $('problem').innerHTML=exprHTML(current.tree); else renderProblem(current);
 }
 function newProblem(){
-  current=gen($('op').value); extra='';
-  renderProblem(current);
-  scratch.clear(); buildCells(); renderMsg(); resetSolve();
+  const op=$('op').value;
+  current=(op==='f2'||op==='f3'||op==='fp')?genFrac(op):Object.assign({kind:'dec',field:{type:'dec',int:INT_CELLS,dec:DEC_CELLS}},gen(op));
+  extra=''; renderAny(); scratch.fit(); scratch.clear(); buildCells(); renderMsg(); resetSolve();
 }
 
 /* ---------- 이벤트 ---------- */
@@ -252,7 +347,7 @@ $('undo').addEventListener('click',()=>{ if(lastInk)lastInk.undo(); });
 $('clearAll').addEventListener('click',()=>{ scratch.clear(); cellInks.forEach(i=>i.clear()); });
 $('next').addEventListener('click',newProblem);
 $('op').addEventListener('change',newProblem);
-$('reveal').addEventListener('click',()=>{ extra='정답: '+ansStr(current.r)+'  (끝자리 0 생략 표기. 4.5와 4.50 모두 정답 처리 예정)'; renderMsg(); });
+$('reveal').addEventListener('click',()=>{ extra='정답: '+ansTextCur()+(current.kind==='dec'?'  (끝자리 0 생략 표기. 4.5와 4.50 모두 정답 처리)':''); renderMsg(); });
 $('selftest').addEventListener('click',()=>{
   let bad=0, n=4000;
   for(let k=0;k<n;k++){
@@ -264,7 +359,16 @@ $('selftest').addEventListener('click',()=>{
       && ((ansStr(p.r).split('.')[1]||'').length<=DEC_CELLS);
     if(!ok)bad++;
   }
-  extra=`자체 테스트 ${n}문항: 불일치 ${bad}건 ${bad?'❌':'✅'}`; renderMsg();
+  let bad2=0, n2=900, bad3=0;
+  for(const lv of ['f2','f3','fp']) for(let k=0;k<n2/3;k++){
+    const p=genFrac(lv);
+    // 화면에 쓰이는 식 텍스트를 따로 해석해서 부동소수점으로 계산한 값과 비교 (생성기와 독립적인 검증)
+    let js=p.exprTxt.replace(/(\d+) (\d+)\/(\d+)/g,(m,w,n,d)=>`(${w}+(${n}/${d}))`).replace(/(?<![\d+])(\d+)\/(\d+)/g,'($1/$2)').replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+    let val; try{ val=Function('return '+js)(); }catch(e){ val=NaN; }
+    if(!(Math.abs(val-p.ans.n/p.ans.d)<1e-9)) bad2++;
+    if(!(p.ans.n>0&&p.ans.n<=99&&p.ans.d<=30&&gcd(p.ans.n,p.ans.d)===1)) bad3++;
+  }
+  extra=`자체 테스트 소수 ${n}문항: 불일치 ${bad}건 ${bad?'❌':'✅'} / 분수식 ${n2}문항: 식↔값 불일치 ${bad2}건, 답 범위·기약 위반 ${bad3}건 ${(bad2||bad3)?'❌':'✅'}`; renderMsg();
 });
 window.addEventListener('resize',()=>{scratch.fit();cellInks.forEach(i=>i.fit());});
 document.addEventListener('gesturestart',e=>e.preventDefault());
@@ -358,6 +462,7 @@ async function loadModel(){
   const m=await (await fetch('model.json')).json();
   const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
   MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
+  try{ $('ver').textContent=`· 앱 v0.8 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
   return MODEL;
 }
 function predict(img){ // img: 784개(0~255) -> 확률 10개
@@ -404,7 +509,8 @@ function readCells(){ // 정답 칸 5개 -> 각 칸의 읽은 숫자(빈 칸/낙
     return {d:o[0],conf:p[o[0]],d2:o[1],p2:p[o[1]],st,w:r.width,h:r.height,img};
   });
 }
-function assemble(cells){ // 정수 3칸(오른쪽 정렬) + 소수 2칸(왼쪽 정렬)
+const digSpan=(i,d,cells)=>`<i class="${cells[i]&&cells[i].conf<CONF_OK?'low':''}">${d}</i>`;
+function assembleDec(cells){ // 정수 3칸(오른쪽 정렬) + 소수 2칸(왼쪽 정렬)
   const I=cells.slice(0,3), F=cells.slice(3,5);
   const pi=I.map(c=>c?'1':'0').join(''), pf=F.map(c=>c?'1':'0').join('');
   if(pi==='000'&&pf==='00') return {status:'empty'};
@@ -416,14 +522,44 @@ function assemble(cells){ // 정수 3칸(오른쪽 정렬) + 소수 2칸(왼쪽 
   if(!ints.length) ints=[[null,0]];                        // 정수 칸이 비면 0으로 본다
   while(fr.length&&fr[fr.length-1][1]===0) fr.pop();      // 뒤쪽 0 무시 (4.50 = 4.5)
   const str=ints.map(x=>x[1]).join('')+(fr.length?'.'+fr.map(x=>x[1]).join(''):'');
-  return {status:'ok',str,ints,fr,used:[...ints.map(x=>x[0]).filter(i=>i!==null),...fr.map(x=>x[0])]};
+  const digits=[...ints.filter(x=>x[0]!==null),...fr], part=arr=>arr.map(([i,d])=>digSpan(i,d,cells)).join('');
+  return {status:'ok',str,text:str,ints,fr,digits,used:digits.map(x=>x[0]),html:part(ints)+(fr.length?'.'+part(fr):'')};
+}
+function grpRead(cells,from,n){ // 한 묶음(정수/분자/분모): 칸을 건너뛰지 않고 이어서 쓴 경우만 인정
+  const pat=cells.slice(from,from+n).map(c=>c?'1':'0').join('');
+  if(!/^0*1*0*$/.test(pat)) return {gap:true};
+  const idx=[...Array(n).keys()].map(i=>from+i).filter(i=>cells[i]);
+  return {idx,str:idx.map(i=>cells[i].d).join('')};
+}
+function assembleMixed(cells){ // [정수 2칸][분자 2칸 / 분모 2칸]
+  const f=current.field, W=grpRead(cells,0,f.whole), N=grpRead(cells,f.whole,f.num), D=grpRead(cells,f.whole+f.num,f.den);
+  if(W.gap||N.gap||D.gap) return {status:'gap',msg:'숫자는 칸을 건너뛰지 말고 이어서 써 줘 ✏️'};
+  if(!W.str&&!N.str&&!D.str) return {status:'empty'};
+  if(!!N.str!==!!D.str) return {status:'gap',msg:'분수는 분자(위)와 분모(아래)를 모두 써 줘 ✏️'};
+  const hasW=!!W.str, hasFrac=!!N.str, w=hasW?parseInt(W.str,10):0, n=hasFrac?parseInt(N.str,10):0, d=hasFrac?parseInt(D.str,10):1;
+  if(hasFrac&&d===0) return {status:'gap',msg:'분모는 0이 될 수 없어. 다시 써 볼까? ✏️'};
+  const val=hasFrac?Fr(w*d+n,d):Fr(w,1), used=[...W.idx,...N.idx,...D.idx], digits=used.map(i=>[i,cells[i].d]);
+  const sp=g=>g.idx.map(i=>digSpan(i,cells[i].d,cells)).join('');
+  const html=(hasW?`<span class="mx"><b>${sp(W)}</b>`:'')+(hasFrac?`<span class="fr"><i>${sp(N)}</i><i>${sp(D)}</i></span>`:'')+(hasW?'</span>':'');
+  const text=(hasW?w:'')+(hasW&&hasFrac?' ':'')+(hasFrac?n+'/'+d:'');
+  return {status:'ok',hasW,hasFrac,w,n,d,val,text,html,digits,used,improper:hasFrac&&!hasW&&n>d};
+}
+const assemble=cells=>current.field.type==='mixed'?assembleMixed(cells):assembleDec(cells);
+const ansTextCur=()=>current.kind==='expr'?ansText(current.ans):ansStr(current.r);
+const ansHTMLCur=()=>current.kind==='expr'?ansHTML(current.ans):ansStr(current.r);
+function judge(a){ // 'correct' | 'unreduced'(값은 맞지만 약분 덜 됨) | 'wrong'
+  if(current.field.type==='dec') return a.str===ansStr(current.r)?'correct':'wrong';
+  if(!feq(a.val,current.ans)) return 'wrong';
+  if(a.hasFrac&&(gcd(a.n,a.d)>1||(a.hasW&&a.n>=a.d))) return 'unreduced';
+  return 'correct';
 }
 function fbMsg(m){ $('fb').innerHTML=`<div>${m}</div>`; }
 function clearCells(){ cellInks.forEach(i=>i.clear()); }
 function fa(n){ const f=fmt(n.s,n.d); return f.i+'.'+f.f; }
 function logAttempt(decision,a,cells,exp,n){
+  const dec=current.kind==='dec';
   attempts.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),t:new Date().toISOString(),who:curWho(),
-    op:current.op,a:fa(current.a),b:fa(current.b),expected:exp,read:a?a.str:null,decision,n,rejects:ps.rejects,ms:Date.now()-ps.t0,
+    type:current.field.type,op:current.op,a:dec?fa(current.a):current.exprTxt,b:dec?fa(current.b):null,expected:exp,read:a?a.text:null,decision,n,rejects:ps.rejects,ms:Date.now()-ps.t0,
     cells:cells.map(c=>c?{d:c.d,conf:+c.conf.toFixed(3),d2:c.d2,p2:+c.p2.toFixed(3)}:null)});
   persistAttempts();
 }
@@ -431,25 +567,26 @@ function todayLine(){
   const day=new Date().toLocaleDateString('sv'); const n=attempts.filter(x=>x.who===curWho()&&x.decision==='correct'&&new Date(x.t).toLocaleDateString('sv')===day).length;
   return `<div style="font-size:14px;color:#7a766a">오늘 맞힌 문제 ${n}개</div>`;
 }
+function sampleOf(c,label,extra){ return Object.assign({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),label,who:curWho(),t:new Date().toISOString(),w:Math.round(c.w),h:Math.round(c.h),
+  strokes:c.st.map(s=>s.pts.map(q=>[+q.x.toFixed(3),+q.y.toFixed(3),+q.p.toFixed(2)])),img:c.img},extra); }
 function autoCollect(a,cells){ // 맞힌 답은 정답을 알고 있으므로 라벨이 확실하다 -> 학습 샘플로 쌓는다
-  if(!$('autoCollect').checked||samples.length>2000) return;
-  const t=new Date().toISOString();
-  a.used.forEach(i=>{ const c=cells[i]; if(!c) return;
-    samples.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),label:c.d,who:curWho(),t,w:Math.round(c.w),h:Math.round(c.h),
-      strokes:c.st.map(s=>s.pts.map(q=>[+q.x.toFixed(3),+q.y.toFixed(3),+q.p.toFixed(2)])),img:c.img,src:'solve'}); });
+  if(!$('autoCollect').checked||samples.length>2500) return;
+  a.used.forEach(i=>{ const c=cells[i]; if(c) samples.push(sampleOf(c,c.d,{src:'solve',field:current.field.type,role:cellInks[i].role})); });
   if(!persist()){ a.used.forEach(()=>samples.pop()); }
 }
 function harvestRejected(a){ // '아니야'로 거절된 칸 = 모델이 틀리게 읽은 사례. 최종 정답의 자리별 숫자를 라벨로 쓴다
-  if(!$('autoCollect').checked||samples.length>2000||!ps.rej.length) return;
-  const lab={}; [...a.ints,...a.fr].forEach(([i,d])=>{ if(i!==null) lab[i]=d; });
-  const key=JSON.stringify(a.used), t=new Date().toISOString(); let n=0;
+  if(!$('autoCollect').checked||samples.length>2500||!ps.rej.length) return;
+  const lab={}; a.digits.forEach(([i,d])=>{ lab[i]=d; });
+  const key=JSON.stringify(a.used); let n=0;
   ps.rej.forEach(r=>{ if(JSON.stringify(r.used)!==key) return;      // 칸 배치가 같을 때만 (라벨 오염 방지)
     r.used.forEach(i=>{ const c=r.cells[i]; if(!c) return;
-      samples.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),label:lab[i],who:curWho(),t,w:Math.round(c.w),h:Math.round(c.h),
-        strokes:c.st.map(s=>s.pts.map(q=>[+q.x.toFixed(3),+q.y.toFixed(3),+q.p.toFixed(2)])),img:c.img,src:'solve-rej',read:c.d,conf:+c.conf.toFixed(3)}); n++; }); });
+      samples.push(sampleOf(c,lab[i],{src:'solve-rej',field:current.field.type,role:cellInks[i].role,read:c.d,conf:+c.conf.toFixed(3)})); n++; }); });
   if(n&&!persist()){ for(let k=0;k<n;k++) samples.pop(); }
 }
 function hintFor(n,exp){
+  if(current.kind==='expr'){ const A=current.ans;
+    return n===1?'계산 순서를 확인해 봐: 괄호 → × ÷ → + − 순서! 소수는 분수로 바꿔서 계산하면 편해.'
+      :(A.d===1?'답은 자연수야. 다시 계산해 보자!':`약분까지 한 답의 분모는 ${A.d}이야. 다시 계산해 보자!`); }
   const dec=(exp.split('.')[1]||'').length, d=dec?`답의 소수점 아래는 ${dec}자리야`:'답은 소수점이 없는 수야';
   if(n===1) return `소수점끼리 줄을 맞춰서 ${current.op==='+'?'더해 봐. 받아올림':'빼 봐. 받아내림'}도 확인! (${d})`;
   return `답의 소수점 위 숫자는 ${exp.split('.')[0]}이야. 소수점 아래를 다시 계산해 보자!`;
@@ -461,23 +598,27 @@ async function check(){
   const cells=readCells(), a=assemble(cells);
   if(a.status==='empty'){ fbMsg('먼저 답을 써 보자 ✏️'); return; }
   if(a.status==='gap'){ fbMsg(a.msg); return; }
-  const exp=ansStr(current.r);
-  if(a.str===exp){
+  const exp=ansTextCur(), v=judge(a);
+  if(v==='correct'){
     ps.n++; logAttempt('correct',a,cells,exp,ps.n); autoCollect(a,cells); harvestRejected(a); finishDone();
-    $('fb').innerHTML=`<div class="ok">정답! 🎉</div><div>${ps.n===1?'한 번에 맞혔어!':ps.n+'번째에 맞혔어!'}</div>`+todayLine();
+    $('fb').innerHTML=`<div class="ok">정답! 🎉</div><div>${ps.n===1?'한 번에 맞혔어!':ps.n+'번째에 맞혔어!'}</div>`+
+      (a.improper&&current.ans.d>1?`<div style="font-size:16px">대분수로 쓰면 <span class="ans">${ansHTMLCur()}</span> 이야</div>`:'')+todayLine();
     return;
+  }
+  if(v==='unreduced'){ // 값은 맞다 -> 오답이 아니라 약분 안내 (시도 횟수는 쓰지 않는다)
+    logAttempt('unreduced',a,cells,exp,ps.n); clearCells();
+    fbMsg(a.hasW&&a.n>=a.d?'값은 맞아! 😀 분수 부분이 1보다 작게 써 볼까?':'값은 맞아! 😀 그런데 더 약분할 수 있어. 약분해서 다시 써 볼까?'); return;
   }
   // 다르게 읽혔다 -> 오답으로 단정하지 않고 읽은 값을 보여주고 확인한다
   ps.pending={a,cells,exp};
-  const part=arr=>arr.map(([i,d])=>`<i class="${i!==null&&cells[i]&&cells[i].conf<CONF_OK?'low':''}">${d}</i>`).join('');
-  const low=[...a.ints,...a.fr].some(([i])=>i!==null&&cells[i]&&cells[i].conf<CONF_OK);
-  $('fb').innerHTML=`<div>이렇게 읽었어. 맞아?</div><div class="big">${part(a.ints)+(a.fr.length?'.'+part(a.fr):'')}</div>`+(low?'<div style="font-size:14px;color:#7a766a">물결 밑줄은 잘 모르겠는 숫자야</div>':'')+
+  const low=a.digits.some(([i])=>cells[i]&&cells[i].conf<CONF_OK);
+  $('fb').innerHTML=`<div>이렇게 읽었어. 맞아?</div><div class="big">${a.html}</div>`+(low?'<div style="font-size:14px;color:#7a766a">물결 밑줄은 잘 모르겠는 숫자야</div>':'')+
     '<button id="yes" class="primary">맞아</button><button id="no">아니야, 다시 쓸게</button>';
   $('yes').onclick=confirmYes; $('no').onclick=confirmNo;
 }
 function confirmYes(){
   const {a,cells,exp}=ps.pending; ps.pending=null; ps.n++; logAttempt('wrong',a,cells,exp,ps.n);
-  if(ps.n>=3){ finishDone(); $('fb').innerHTML=`<div class="hint">괜찮아, 어려웠지? 정답은 <b>${exp}</b>이야.<br>풀이를 같이 확인해 보자.</div>`+todayLine(); return; }
+  if(ps.n>=3){ finishDone(); $('fb').innerHTML=`<div class="hint">괜찮아, 어려웠지? 정답은 <span class="ans">${ansHTMLCur()}</span>이야.<br>풀이를 같이 확인해 보자.</div>`+todayLine(); return; }
   clearCells();
   $('fb').innerHTML=`<div class="hint">아깝다! 다시 해 보자 💪<br>${hintFor(ps.n,exp)}</div><div style="font-size:14px;color:#7a766a">남은 기회 ${3-ps.n}번</div>`;
 }
