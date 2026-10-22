@@ -83,6 +83,10 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
 .expr .grp{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .expr .gltxt{font-size:.8em;margin-left:10px;white-space:nowrap}
 .expr .gltxt b{margin-left:.3em}
+.ladt{font-size:.5em;margin-bottom:14px;color:#4a4a42}.ladt b{color:var(--accent)}
+.ladrow{display:flex;align-items:center;gap:22px}.ladbox{display:inline-block;width:64px;height:1.1em;border-bottom:2px solid #9a958a;margin-right:-8px}
+.ladp{font-size:1.5em;font-weight:200;margin:0 -10px 0 -4px}.ladsub{font-size:.34em;color:#7a766a;margin-top:12px}
+.ladrow .a{padding-bottom:2px;border-bottom:2px solid #9a958a}
 .expr .par{font-size:1.7em;font-weight:200;line-height:1}
 .fr{display:inline-flex;flex-direction:column;align-items:center;font-size:.78em;line-height:1.12;margin:0 2px;font-variant-numeric:tabular-nums}
 .fr i{font-style:normal;padding:0 5px;min-width:1.2em;text-align:center}
@@ -158,9 +162,9 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
   </section>
   <footer>
     <details>
-      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.9</span></summary>
+      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.10</span></summary>
       <div class="dev">
-        <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option></select></label>
+        <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option><option value="ladL">공약수로 나누어 최소공배수 (구몬식)</option><option value="ladG">공약수로 나누어 최대공약수 (구몬식)</option><option value="lad">공약수로 나누기 섞기 (구몬식)</option></select></label>
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
         <button id="reveal">정답 보기</button>
         <button id="selftest">문제 생성기 자체 테스트</button>
@@ -251,7 +255,20 @@ function genFrac(level){
 /* ---------- 공약수·공배수 ---------- */
 const lcm2=(a,b)=>a/gcd(a,b)*b, gcdN=a=>a.reduce(gcd), lcmN=a=>a.reduce(lcm2);
 const ri=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
+function ladSteps(a,b){ const dv=[]; let x=a,y=b; for(;;){ let p=0; for(let q=2;q<=Math.min(x,y);q++) if(x%q===0&&y%q===0){p=q;break;} if(!p) break; dv.push(p); x/=p; y/=p; } return {dv,rest:[x,y]}; }
+function genLad(op){ // 구몬식: 공약수로 나누어 최소공배수/최대공약수. 두 수는 서로소가 아니고(사다리가 시작됨), 순서는 섞는다
+  const kind=op==='ladL'?'lcm':op==='ladG'?'gcd':(Math.random()<.5?'lcm':'gcd');
+  for(let i=0;i<20000;i++){
+    const g=ri(2,12), m1=ri(1,9), m2=ri(1,9); if(m1===m2) continue;
+    let nums=[g*m1,g*m2]; if(Math.max(...nums)>60||Math.min(...nums)<4) continue;
+    const L=lcm2(nums[0],nums[1]); if(L>300) continue;
+    if(Math.random()<.5) nums.reverse();
+    const ans=kind==='lcm'?L:gcd(nums[0],nums[1]); if(ans<2) continue;
+    return {kind:'num',op:kind,lad:true,nums,ans,exprTxt:nums.join(', ')+' → '+(kind==='lcm'?'최소공배수':'최대공약수')+'(공약수로 나누기)',field:{type:'int',n:4}};
+  } throw new Error('문제 생성 실패');
+}
 function genGL(op){
+  if(op==='ladL'||op==='ladG'||op==='lad') return genLad(op);
   const kind=op==='gcd'||op==='lcm'?op:(Math.random()<.5?'gcd':'lcm'), three=op==='gl3';
   for(let i=0;i<20000;i++){
     let nums;
@@ -273,7 +290,8 @@ function genGL(op){
     return {kind:'num',op:kind,nums,ans,exprTxt:nums.join(', ')+' → '+(kind==='gcd'?'최대공약수':'최소공배수'),field:{type:'int',n:4}};
   } throw new Error('문제 생성 실패');
 }
-const glHTML=p=>p.nums.map(n=>`<span class="a">${n}</span>`).join('<span class="op">,</span>')+`<span class="gltxt">의 <b>${p.op==='gcd'?'최대공약수':'최소공배수'}</b></span>`;
+const glHTML=p=>p.lad?`<div class="ladt">공약수로 나누어 <b>${p.op==='lcm'?'최소공배수':'최대공약수'}</b>를 구하시오</div><div class="ladrow"><span class="ladbox"></span><span class="ladp">)</span><span class="a">${p.nums[0]}</span><span class="a">${p.nums[1]}</span></div><div class="ladsub">${p.op==='lcm'?'공약수와 남은 수를 모두 곱해 줘':'나눈 공약수들을 모두 곱해 줘'} · 풀이는 아래에 자유롭게 써 줘</div>`:
+p.nums.map(n=>`<span class="a">${n}</span>`).join('<span class="op">,</span>')+`<span class="gltxt">의 <b>${p.op==='gcd'?'최대공약수':'최소공배수'}</b></span>`;
 function ansText(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return w?`${w} ${r}/${v.d}`:`${v.n}/${v.d}`; }
 function ansHTML(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return (w?`<span class="mx"><b>${w}</b>${frHTML(r,v.d)}</span>`:frHTML(v.n,v.d)); }
 
@@ -359,7 +377,7 @@ function buildCells(){
 function renderAny(){
   if(current.kind==='num'){
     document.querySelector('main').dataset.mode='expr'; $('problem').className='expr';
-    $('lvl').textContent='공약수 · 공배수'; $('ansTitle').textContent='답을 한 칸에 숫자 하나씩';
+    $('lvl').textContent=current.lad?'공약수로 나누기':'공약수 · 공배수'; $('ansTitle').textContent=current.lad?(current.op==='lcm'?'최소공배수를 한 칸에 숫자 하나씩':'최대공약수를 한 칸에 숫자 하나씩'):'답을 한 칸에 숫자 하나씩';
     $('ansSub').textContent='큰 자리 숫자부터 차례로 이어서 써 줘'; $('problem').innerHTML=glHTML(current); return;
   }
   const ex=current.kind==='expr';
@@ -372,7 +390,7 @@ function renderAny(){
 }
 function newProblem(){
   const op=$('op').value;
-  current=(op==='gcd'||op==='lcm'||op==='gl'||op==='gl3')?genGL(op):(op==='f2'||op==='f3'||op==='fp')?genFrac(op):Object.assign({kind:'dec',field:{type:'dec',int:INT_CELLS,dec:DEC_CELLS}},gen(op));
+  current=(op==='gcd'||op==='lcm'||op==='gl'||op==='gl3'||op==='ladL'||op==='ladG'||op==='lad')?genGL(op):(op==='f2'||op==='f3'||op==='fp')?genFrac(op):Object.assign({kind:'dec',field:{type:'dec',int:INT_CELLS,dec:DEC_CELLS}},gen(op));
   extra=''; renderAny(); scratch.fit(); scratch.clear(); buildCells(); renderMsg(); resetSolve();
 }
 
@@ -405,11 +423,11 @@ $('selftest').addEventListener('click',()=>{
     if(!(p.ans.n>0&&p.ans.n<=99&&p.ans.d<=30&&gcd(p.ans.n,p.ans.d)===1)) bad3++;
   }
   let bad4=0, n4=600;
-  for(const op of ['gcd','lcm','gl','gl3']) for(let k=0;k<n4/4;k++){
+  for(const op of ['gcd','lcm','gl','gl3','ladL','ladG','lad']) for(let k=0;k<n4/4;k++){
     const p=genGL(op), N=p.nums; let best;               // 정의대로 무차별 대입으로 검증 (생성기 공식과 독립)
-    if(p.op==='gcd'){ best=0; for(let d=1;d<=N[0];d++) if(N.every(x=>x%d===0)) best=d; }
+    if(p.op==='gcd'){ best=0; for(let d=1;d<=Math.min(...N);d++) if(N.every(x=>x%d===0)) best=d; }
     else { best=0; for(let m=Math.max(...N);m<=100000;m++) if(N.every(x=>m%x===0)){ best=m; break; } }
-    if(best!==p.ans||String(p.ans).length>p.field.n||new Set(N).size<N.length) bad4++;
+    if(best!==p.ans||String(p.ans).length>p.field.n||new Set(N).size<N.length||(p.lad&&(gcd(N[0],N[1])<2||ladSteps(N[0],N[1]).dv.length<1))) bad4++;
   }
   extra=`자체 테스트 소수 ${n}문항: 불일치 ${bad}건 ${bad?'❌':'✅'} / 분수식 ${n2}문항: 식↔값 불일치 ${bad2}건, 답 범위·기약 위반 ${bad3}건 ${(bad2||bad3)?'❌':'✅'} / 공약수·공배수 ${n4}문항: 불일치 ${bad4}건 ${bad4?'❌':'✅'}`; renderMsg();
 });
@@ -505,7 +523,7 @@ async function loadModel(){
   const m=await (await fetch('model.json')).json();
   const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
   MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
-  try{ $('ver').textContent=`· 앱 v0.9 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
+  try{ $('ver').textContent=`· 앱 v0.10 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
   return MODEL;
 }
 function predict(img){ // img: 784개(0~255) -> 확률 10개
@@ -635,6 +653,10 @@ function harvestRejected(a){ // '아니야'로 거절된 칸 = 모델이 틀리�
   if(n&&!persist()){ for(let k=0;k<n;k++) samples.pop(); }
 }
 function hintFor(n,exp){
+  if(current.kind==='num'&&current.lad){ const [a,b]=current.nums, st=ladSteps(a,b), p=st.dv[0], dvs=st.dv.join(' × ');
+    if(n===1) return `둘을 같이 나눌 수 있는 수(1 말고)로 나눠 봐. 먼저 ${p}로 나누면 ${a/p}와 ${b/p}가 돼.`+(current.op==='lcm'?' 더 나눌 수 없을 때까지 계속!':'');
+    return current.op==='lcm'?`나눈 공약수 ${st.dv.join(', ')}와 마지막에 남은 수 ${st.rest.join(', ')}를 모두 곱해 보자!`
+      :`나눈 공약수 ${st.dv.join(', ')}를 모두 곱하면 돼. 남은 수는 곱하지 않아!`; }
   if(current.kind==='num'){ const N=current.nums, mn=N[0], mx=N[N.length-1], len=exp.length;
     if(current.op==='gcd') return n===1?`공통으로 나눌 수 있는 수 중 가장 큰 수야. ${mn}의 약수부터 찾아서 ${N.length>2?'나머지 수':mx}도 나누는지 확인해 봐!`
         :`답은 ${mn}보다 크지 않아. 두 수를 같이 나눌 수 있는 수로 계속 나눠 봐 (답은 ${len}자리).`;
