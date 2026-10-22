@@ -83,6 +83,15 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
 .expr .grp{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .expr .gltxt{font-size:.8em;margin-left:10px;white-space:nowrap}
 .expr .gltxt b{margin-left:.3em}
+.brick{font-size:22px;font-weight:700;color:#a8642a;margin-top:4px}
+#buildBtn b{font-variant-numeric:tabular-nums}
+#build{position:fixed;inset:0;background:rgba(43,42,51,.55);display:flex;align-items:center;justify-content:center;z-index:50}
+#build[hidden]{display:none}
+.bcard{background:var(--card);border-radius:20px;padding:16px 20px;width:min(94vw,820px);max-height:94vh;overflow:auto}
+.bhead{display:flex;align-items:center;gap:14px;font-size:22px}.bhead span{color:#7a766a;font-size:16px;flex:1}
+#bsvg{width:100%;height:auto;border-radius:12px;margin:10px 0;background:#d9ecf5}
+#bsvg .part{transition:opacity .8s}
+#bfacts{font-size:17px;line-height:1.55}#bfacts p{margin:6px 0}#bfacts .new{color:var(--accent);font-weight:700}
 .ladt{font-size:.5em;margin-bottom:14px;color:#4a4a42}.ladt b{color:var(--accent)}
 .ladrow{display:flex;align-items:center;gap:22px}.ladbox{display:inline-block;width:64px;height:1.1em;border-bottom:2px solid #9a958a;margin-right:-8px}
 .ladp{font-size:1.5em;font-weight:200;margin:0 -10px 0 -4px}.ladsub{font-size:.34em;color:#7a766a;margin-top:12px}
@@ -115,6 +124,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
       <button id="undo">↩︎ 되돌리기</button>
       <button id="clearAll">🗑 모두 지우기</button>
       <button id="collectBtn">✋ 숫자 모으기</button>
+      <button id="buildBtn" aria-label="건축 보기">🧱 <b id="bk">0</b>/40</button>
       <button id="next" class="primary">다음 문제</button>
     </div>
   </header>
@@ -162,7 +172,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
   </section>
   <footer>
     <details>
-      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.10</span></summary>
+      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.11</span></summary>
       <div class="dev">
         <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option><option value="ladL">공약수로 나누어 최소공배수 (구몬식)</option><option value="ladG">공약수로 나누어 최대공약수 (구몬식)</option><option value="lad">공약수로 나누기 섞기 (구몬식)</option></select></label>
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
@@ -176,6 +186,13 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
   </footer>
 </div>
 
+<div id="build" hidden>
+  <div class="bcard">
+    <div class="bhead"><b>🌉 세체니 쇠사슬 다리</b><span id="bcount"></span><button id="bclose" class="primary">닫기</button></div>
+    <svg id="bsvg" viewBox="0 0 480 250" role="img" aria-label="짓고 있는 다리"></svg>
+    <div id="bfacts"></div>
+  </div>
+</div>
 <script>
 const $=id=>document.getElementById(id);
 const INT_CELLS=3, DEC_CELLS=2;
@@ -294,6 +311,51 @@ const glHTML=p=>p.lad?`<div class="ladt">공약수로 나누어 <b>${p.op==='lcm
 p.nums.map(n=>`<span class="a">${n}</span>`).join('<span class="op">,</span>')+`<span class="gltxt">의 <b>${p.op==='gcd'?'최대공약수':'최소공배수'}</b></span>`;
 function ansText(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return w?`${w} ${r}/${v.d}`:`${v.n}/${v.d}`; }
 function ansHTML(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return (w?`<span class="mx"><b>${w}</b>${frHTML(r,v.d)}</span>`:frHTML(v.n,v.d)); }
+
+
+/* ---------- 건축 보상: 세체니 쇠사슬 다리 ---------- */
+const BKEY='jq_build_v1', BTOTAL=40, BT=[3,6,11,16,21,26,31,35,38,40];
+const FACTS=[[3,'헝가리의 수도 부다페스트에는 도나우 강이 흘러. 강의 서쪽은 부다, 동쪽은 페스트였어.'],
+ [11,'세체니 쇠사슬 다리는 1849년에 완성된, 부다페스트 도나우 강 위의 첫 번째 영구 다리야.'],
+ [21,'가운데 구간 길이가 202미터나 돼서, 지어질 때 세계에서 손꼽히게 긴 다리였대.'],
+ [31,'설계는 영국 엔지니어 윌리엄 티어니 클라크, 공사 감독은 스코틀랜드 엔지니어 애덤 클라크가 했어. 둘은 친척이 아니래!'],
+ [38,'다리 양쪽 끝에는 사자 조각이 있어. 1852년에 세웠대.'],
+ [40,'다리가 완성됐어! 🎉 1873년에는 부다, 페스트, 오부다가 합쳐져서 지금의 부다페스트가 되었어.']];
+let bricks={}; try{ bricks=JSON.parse(localStorage.getItem(BKEY)||'{}'); }catch(e){ bricks={}; }
+const getBricks=()=>Math.min(BTOTAL,bricks[curWho()]||0);
+function award(k){ const w=curWho(), before=bricks[w]||0; bricks[w]=before+k;
+  try{ localStorage.setItem(BKEY,JSON.stringify(bricks)); }catch(e){}
+  updBuildChip(); const a=Math.min(before,BTOTAL), b=Math.min(bricks[w],BTOTAL);
+  return {gain:Math.max(0,b-a), total:b, unlocked:FACTS.filter(f=>a<f[0]&&b>=f[0]).length>0}; }
+function updBuildChip(){ $('bk').textContent=getBricks(); }
+function bridgeSVG(n){
+  const op=i=>{ const lo=i?BT[i-1]:0, v=(n-lo)/(BT[i]-lo); return Math.max(0,Math.min(1,v)).toFixed(2); };
+  const chainY=x=>{ const t=(x-128)/(352-128); return (1-t)*(1-t)*72+2*(1-t)*t*170+t*t*72; };
+  let hang=''; for(let x=146;x<=334;x+=14) hang+=`<line x1="${x}" y1="${chainY(x).toFixed(1)}" x2="${x}" y2="168" />`;
+  const lamp=[40,100,160,230,300,360,420,450].map(x=>`<circle cx="${x}" cy="160" r="3.5"/>`).join('');
+  return `<defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bcdcee"/><stop offset="1" stop-color="#f6e7cf"/></linearGradient></defs>
+  <rect width="480" height="250" fill="url(#sk)"/>
+  <polygon points="0,170 60,120 110,140 170,105 230,135 300,150 360,125 420,140 480,120 480,190 0,190" fill="#9dbb96" opacity=".6"/>
+  <rect y="186" width="480" height="64" fill="#6fa3c2"/>
+  <g stroke="#fff" stroke-width="2" opacity=".55" fill="none"><path d="M20 205q10-6 20 0t20 0M150 222q10-6 20 0t20 0M300 208q10-6 20 0t20 0M400 228q10-6 20 0t20 0"/></g>
+  <g class="part" opacity="${op(0)}" fill="#9a8f7c"><rect x="106" y="150" width="44" height="76"/></g>
+  <g class="part" opacity="${op(1)}" fill="#9a8f7c"><rect x="330" y="150" width="44" height="76"/></g>
+  <g class="part" opacity="${op(2)}"><rect x="118" y="74" width="22" height="82" fill="#b9ae98"/><path d="M114 74h30l-15-20z" fill="#8c7f6a"/></g>
+  <g class="part" opacity="${op(3)}"><rect x="340" y="74" width="22" height="82" fill="#b9ae98"/><path d="M336 74h30l-15-20z" fill="#8c7f6a"/></g>
+  <g class="part" opacity="${op(4)}"><rect x="20" y="166" width="224" height="8" fill="#5b5648"/></g>
+  <g class="part" opacity="${op(5)}"><rect x="240" y="166" width="220" height="8" fill="#5b5648"/></g>
+  <g class="part" opacity="${op(6)}" fill="none" stroke="#3a3a3a" stroke-width="3"><path d="M20 166L129 72"/><path d="M129 72Q240 268 351 72"/><path d="M351 72L460 166"/></g>
+  <g class="part" opacity="${op(7)}" stroke="#3a3a3a" stroke-width="1.5">${hang}</g>
+  <g class="part" opacity="${op(8)}" fill="#d9a441"><rect x="22" y="152" width="14" height="12" rx="3"/><rect x="40" y="152" width="14" height="12" rx="3"/><rect x="426" y="152" width="14" height="12" rx="3"/><rect x="444" y="152" width="14" height="12" rx="3"/></g>
+  <g class="part" opacity="${op(9)}" fill="#ffd96b">${lamp}</g>`; }
+function openBuild(newly){
+  const n=getBricks(); $('bsvg').innerHTML=bridgeSVG(n);
+  $('bcount').textContent=`벽돌 ${n} / ${BTOTAL}`+(n>=BTOTAL?' · 완성!':'');
+  const got=FACTS.filter(f=>n>=f[0]);
+  $('bfacts').innerHTML=got.length?got.map((f,i)=>`<p class="${newly&&i===got.length-1?'new':''}">📖 ${f[1]}</p>`).join(''):'<p>문제를 풀면 벽돌을 얻어. 벽돌이 쌓이면 다리 이야기도 열려!</p>';
+  $('build').hidden=false; }
+$('buildBtn').addEventListener('click',()=>openBuild(false));
+$('bclose').addEventListener('click',()=>{ $('build').hidden=true; });
 
 /* ---------- 필기 캔버스 ---------- */
 class Ink{
@@ -523,7 +585,7 @@ async function loadModel(){
   const m=await (await fetch('model.json')).json();
   const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
   MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
-  try{ $('ver').textContent=`· 앱 v0.10 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
+  try{ $('ver').textContent=`· 앱 v0.11 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
   return MODEL;
 }
 function predict(img){ // img: 784개(0~255) -> 확률 10개
@@ -558,7 +620,7 @@ let ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null,rej:[]};
 function resetSolve(){ ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null,rej:[]}; $('fb').innerHTML=''; $('next').classList.remove('pulse'); $('check').disabled=false; }
 function syncWho(){ $('whoBtn').textContent='👤 '+curWho(); }
 $('whoBtn').addEventListener('click',()=>{ $('who').value=curWho()==='아빠'?'진윤':'아빠'; $('who').dispatchEvent(new Event('change')); });
-$('who').addEventListener('change',syncWho); syncWho();
+$('who').addEventListener('change',()=>{ syncWho(); updBuildChip(); }); syncWho();
 
 function readCells(){ // 정답 칸 5개 -> 각 칸의 읽은 숫자(빈 칸/낙서는 null)
   return cellInks.map(ink=>{
@@ -632,6 +694,7 @@ function logAttempt(decision,a,cells,exp,n){
     cells:cells.map(c=>c?{d:c.d,conf:+c.conf.toFixed(3),d2:c.d2,p2:+c.p2.toFixed(3)}:null)});
   persistAttempts();
 }
+function todayCorrect(){ const day=new Date().toLocaleDateString('sv'); return attempts.filter(x=>x.who===curWho()&&x.decision==='correct'&&new Date(x.t).toLocaleDateString('sv')===day).length; }
 function todayLine(){
   const day=new Date().toLocaleDateString('sv'); const n=attempts.filter(x=>x.who===curWho()&&x.decision==='correct'&&new Date(x.t).toLocaleDateString('sv')===day).length;
   return `<div style="font-size:14px;color:#7a766a">오늘 맞힌 문제 ${n}개</div>`;
@@ -679,8 +742,10 @@ async function check(){
   const exp=ansTextCur(), v=judge(a);
   if(v==='correct'){
     ps.n++; logAttempt('correct',a,cells,exp,ps.n); autoCollect(a,cells); harvestRejected(a); finishDone();
-    $('fb').innerHTML=`<div class="ok">정답! 🎉</div><div>${ps.n===1?'한 번에 맞혔어!':ps.n+'번째에 맞혔어!'}</div>`+
+    const rw=award(ps.n===1?3:ps.n===2?2:1);
+    $('fb').innerHTML=`<div class="ok">정답! 🎉</div><div>${ps.n===1?'한 번에 맞혔어!':ps.n+'번째에 맞혔어!'}</div><div class="brick">🧱 +${rw.gain||0}</div>`+
       (a.improper&&current.ans.d>1?`<div style="font-size:16px">대분수로 쓰면 <span class="ans">${ansHTMLCur()}</span> 이야</div>`:'')+todayLine();
+    if(rw.unlocked||todayCorrect()===10) setTimeout(()=>openBuild(rw.unlocked),900);
     return;
   }
   if(v==='unreduced'){ // 값은 맞다 -> 오답이 아니라 약분 안내 (시도 횟수는 쓰지 않는다)
@@ -696,7 +761,7 @@ async function check(){
 }
 function confirmYes(){
   const {a,cells,exp}=ps.pending; ps.pending=null; ps.n++; logAttempt('wrong',a,cells,exp,ps.n);
-  if(ps.n>=3){ finishDone(); $('fb').innerHTML=`<div class="hint">괜찮아, 어려웠지? 정답은 <span class="ans">${ansHTMLCur()}</span>이야.<br>풀이를 같이 확인해 보자.</div>`+todayLine(); return; }
+  if(ps.n>=3){ finishDone(); const rw=award(1); $('fb').innerHTML=`<div class="hint">괜찮아, 어려웠지? 정답은 <span class="ans">${ansHTMLCur()}</span>이야.<br>풀이를 같이 확인해 보자.</div><div class="brick">🧱 +${rw.gain||0} 끝까지 해 봐서 벽돌 하나!</div>`+todayLine(); return; }
   clearCells();
   $('fb').innerHTML=`<div class="hint">아깝다! 다시 해 보자 💪<br>${hintFor(ps.n,exp)}</div><div style="font-size:14px;color:#7a766a">남은 기회 ${3-ps.n}번</div>`;
 }
@@ -714,7 +779,7 @@ async function saveJSON(name,obj){
 $('expAttempts').addEventListener('click',()=>saveJSON('jinyoon-attempts-'+new Date().toISOString().slice(0,10)+'.json',{app:'jinyoon-quest',schema:1,exportedAt:new Date().toISOString(),attempts}));
 loadModel().catch(()=>{});
 
-scratch=new Ink($('scratch')); attach(scratch);
+updBuildChip(); scratch=new Ink($('scratch')); attach(scratch);
 newProblem();
 
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
