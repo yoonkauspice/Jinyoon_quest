@@ -81,6 +81,8 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
 .expr .a{display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
 .expr .op{color:var(--accent);padding:0 6px;font-size:.95em}
 .expr .grp{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.expr .gltxt{font-size:.8em;margin-left:10px;white-space:nowrap}
+.expr .gltxt b{margin-left:.3em}
 .expr .par{font-size:1.7em;font-weight:200;line-height:1}
 .fr{display:inline-flex;flex-direction:column;align-items:center;font-size:.78em;line-height:1.12;margin:0 2px;font-variant-numeric:tabular-nums}
 .fr i{font-style:normal;padding:0 5px;min-width:1.2em;text-align:center}
@@ -156,9 +158,9 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
   </section>
   <footer>
     <details>
-      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.8</span></summary>
+      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.9</span></summary>
       <div class="dev">
-        <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option></select></label>
+        <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option></select></label>
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
         <button id="reveal">정답 보기</button>
         <button id="selftest">문제 생성기 자체 테스트</button>
@@ -245,6 +247,33 @@ function genFrac(level){
       return {kind:'expr',op:level,tree:t,ans:v,exprTxt:exprText(t),field:{type:'mixed',whole:2,num:2,den:2}}; }catch(e){}
   } throw new Error('문제 생성 실패');
 }
+
+/* ---------- 공약수·공배수 ---------- */
+const lcm2=(a,b)=>a/gcd(a,b)*b, gcdN=a=>a.reduce(gcd), lcmN=a=>a.reduce(lcm2);
+const ri=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
+function genGL(op){
+  const kind=op==='gcd'||op==='lcm'?op:(Math.random()<.5?'gcd':'lcm'), three=op==='gl3';
+  for(let i=0;i<20000;i++){
+    let nums;
+    if(kind==='gcd'){
+      const g=ri(2,three?8:12), ms=Array.from({length:three?3:2},()=>ri(1,three?9:10));
+      if(gcdN(ms)!==1||new Set(ms).size<ms.length) continue;
+      nums=ms.map(m=>g*m);
+      if(Math.max(...nums)>99) continue;
+    } else {
+      const k=three?3:2; nums=Array.from({length:k},()=>ri(2,three?24:36));
+      if(new Set(nums).size<k) continue;
+      if(nums.some(x=>nums.some(y=>y!==x&&y%x===0))) continue;       // 한 수가 다른 수의 약수인 뻔한 경우 제외
+      const L=lcmN(nums); if(L>999||L<=Math.max(...nums)) continue;
+      if(three&&L===nums.reduce((p,q)=>p*q,1)) continue;
+    }
+    nums.sort((a,b)=>a-b);
+    const ans=kind==='gcd'?gcdN(nums):lcmN(nums);
+    if(kind==='gcd'&&ans<2) continue;
+    return {kind:'num',op:kind,nums,ans,exprTxt:nums.join(', ')+' → '+(kind==='gcd'?'최대공약수':'최소공배수'),field:{type:'int',n:4}};
+  } throw new Error('문제 생성 실패');
+}
+const glHTML=p=>p.nums.map(n=>`<span class="a">${n}</span>`).join('<span class="op">,</span>')+`<span class="gltxt">의 <b>${p.op==='gcd'?'최대공약수':'최소공배수'}</b></span>`;
 function ansText(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return w?`${w} ${r}/${v.d}`:`${v.n}/${v.d}`; }
 function ansHTML(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return (w?`<span class="mx"><b>${w}</b>${frHTML(r,v.d)}</span>`:frHTML(v.n,v.d)); }
 
@@ -311,7 +340,9 @@ function buildCells(){
     d.innerHTML='<canvas></canvas><button class="x" aria-label="이 칸 지우기">✕</button>';parent.appendChild(d);
     const ink=new Ink(d.querySelector('canvas')); ink.role=role; attach(ink); cellInks.push(ink);
     d.querySelector('.x').addEventListener('click',()=>{ink.clear();});};
-  if(f.type==='dec'){
+  if(f.type==='int'){
+    for(let i=0;i<f.n;i++)mk(box,'int');
+  } else if(f.type==='dec'){
     for(let i=0;i<f.int;i++)mk(box,'int');
     const dt=document.createElement('div');dt.className='dot';box.appendChild(dt);
     for(let i=0;i<f.dec;i++)mk(box,'dec');
@@ -326,6 +357,11 @@ function buildCells(){
   }
 }
 function renderAny(){
+  if(current.kind==='num'){
+    document.querySelector('main').dataset.mode='expr'; $('problem').className='expr';
+    $('lvl').textContent='공약수 · 공배수'; $('ansTitle').textContent='답을 한 칸에 숫자 하나씩';
+    $('ansSub').textContent='큰 자리 숫자부터 차례로 이어서 써 줘'; $('problem').innerHTML=glHTML(current); return;
+  }
   const ex=current.kind==='expr';
   document.querySelector('main').dataset.mode=ex?'expr':'vert';
   $('problem').className=ex?'expr':'';
@@ -336,7 +372,7 @@ function renderAny(){
 }
 function newProblem(){
   const op=$('op').value;
-  current=(op==='f2'||op==='f3'||op==='fp')?genFrac(op):Object.assign({kind:'dec',field:{type:'dec',int:INT_CELLS,dec:DEC_CELLS}},gen(op));
+  current=(op==='gcd'||op==='lcm'||op==='gl'||op==='gl3')?genGL(op):(op==='f2'||op==='f3'||op==='fp')?genFrac(op):Object.assign({kind:'dec',field:{type:'dec',int:INT_CELLS,dec:DEC_CELLS}},gen(op));
   extra=''; renderAny(); scratch.fit(); scratch.clear(); buildCells(); renderMsg(); resetSolve();
 }
 
@@ -368,7 +404,14 @@ $('selftest').addEventListener('click',()=>{
     if(!(Math.abs(val-p.ans.n/p.ans.d)<1e-9)) bad2++;
     if(!(p.ans.n>0&&p.ans.n<=99&&p.ans.d<=30&&gcd(p.ans.n,p.ans.d)===1)) bad3++;
   }
-  extra=`자체 테스트 소수 ${n}문항: 불일치 ${bad}건 ${bad?'❌':'✅'} / 분수식 ${n2}문항: 식↔값 불일치 ${bad2}건, 답 범위·기약 위반 ${bad3}건 ${(bad2||bad3)?'❌':'✅'}`; renderMsg();
+  let bad4=0, n4=600;
+  for(const op of ['gcd','lcm','gl','gl3']) for(let k=0;k<n4/4;k++){
+    const p=genGL(op), N=p.nums; let best;               // 정의대로 무차별 대입으로 검증 (생성기 공식과 독립)
+    if(p.op==='gcd'){ best=0; for(let d=1;d<=N[0];d++) if(N.every(x=>x%d===0)) best=d; }
+    else { best=0; for(let m=Math.max(...N);m<=100000;m++) if(N.every(x=>m%x===0)){ best=m; break; } }
+    if(best!==p.ans||String(p.ans).length>p.field.n||new Set(N).size<N.length) bad4++;
+  }
+  extra=`자체 테스트 소수 ${n}문항: 불일치 ${bad}건 ${bad?'❌':'✅'} / 분수식 ${n2}문항: 식↔값 불일치 ${bad2}건, 답 범위·기약 위반 ${bad3}건 ${(bad2||bad3)?'❌':'✅'} / 공약수·공배수 ${n4}문항: 불일치 ${bad4}건 ${bad4?'❌':'✅'}`; renderMsg();
 });
 window.addEventListener('resize',()=>{scratch.fit();cellInks.forEach(i=>i.fit());});
 document.addEventListener('gesturestart',e=>e.preventDefault());
@@ -462,7 +505,7 @@ async function loadModel(){
   const m=await (await fetch('model.json')).json();
   const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
   MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
-  try{ $('ver').textContent=`· 앱 v0.8 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
+  try{ $('ver').textContent=`· 앱 v0.9 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
   return MODEL;
 }
 function predict(img){ // img: 784개(0~255) -> 확률 10개
@@ -544,10 +587,18 @@ function assembleMixed(cells){ // [정수 2칸][분자 2칸 / 분모 2칸]
   const text=(hasW?w:'')+(hasW&&hasFrac?' ':'')+(hasFrac?n+'/'+d:'');
   return {status:'ok',hasW,hasFrac,w,n,d,val,text,html,digits,used,improper:hasFrac&&!hasW&&n>d};
 }
-const assemble=cells=>current.field.type==='mixed'?assembleMixed(cells):assembleDec(cells);
-const ansTextCur=()=>current.kind==='expr'?ansText(current.ans):ansStr(current.r);
-const ansHTMLCur=()=>current.kind==='expr'?ansHTML(current.ans):ansStr(current.r);
+function assembleInt(cells){ // 정수 n칸: 칸을 건너뛰지 않고 이어서 쓴 경우만 인정, 앞쪽 0은 무시
+  const G=grpRead(cells,0,current.field.n);
+  if(G.gap) return {status:'gap',msg:'숫자는 칸을 건너뛰지 말고 이어서 써 줘 ✏️'};
+  if(!G.str) return {status:'empty'};
+  const str=String(parseInt(G.str,10)), sp=G.idx.map(i=>digSpan(i,cells[i].d,cells)).join('');
+  return {status:'ok',str,text:str,digits:G.idx.map(i=>[i,cells[i].d]),used:G.idx.slice(),html:sp};
+}
+const assemble=cells=>current.field.type==='int'?assembleInt(cells):current.field.type==='mixed'?assembleMixed(cells):assembleDec(cells);
+const ansTextCur=()=>current.kind==='num'?String(current.ans):current.kind==='expr'?ansText(current.ans):ansStr(current.r);
+const ansHTMLCur=()=>current.kind==='num'?String(current.ans):current.kind==='expr'?ansHTML(current.ans):ansStr(current.r);
 function judge(a){ // 'correct' | 'unreduced'(값은 맞지만 약분 덜 됨) | 'wrong'
+  if(current.field.type==='int') return a.str===String(current.ans)?'correct':'wrong';
   if(current.field.type==='dec') return a.str===ansStr(current.r)?'correct':'wrong';
   if(!feq(a.val,current.ans)) return 'wrong';
   if(a.hasFrac&&(gcd(a.n,a.d)>1||(a.hasW&&a.n>=a.d))) return 'unreduced';
@@ -584,6 +635,11 @@ function harvestRejected(a){ // '아니야'로 거절된 칸 = 모델이 틀리�
   if(n&&!persist()){ for(let k=0;k<n;k++) samples.pop(); }
 }
 function hintFor(n,exp){
+  if(current.kind==='num'){ const N=current.nums, mn=N[0], mx=N[N.length-1], len=exp.length;
+    if(current.op==='gcd') return n===1?`공통으로 나눌 수 있는 수 중 가장 큰 수야. ${mn}의 약수부터 찾아서 ${N.length>2?'나머지 수':mx}도 나누는지 확인해 봐!`
+        :`답은 ${mn}보다 크지 않아. 두 수를 같이 나눌 수 있는 수로 계속 나눠 봐 (답은 ${len}자리).`;
+    return n===1?`모든 수의 배수가 되는 가장 작은 수야. 가장 큰 수 ${mx}의 배수를 차례로 써서 확인해 봐!`
+        :`답은 ${mx}의 배수이고 ${len}자리 수야. 다시 확인해 보자!`; }
   if(current.kind==='expr'){ const A=current.ans;
     return n===1?'계산 순서를 확인해 봐: 괄호 → × ÷ → + − 순서! 소수는 분수로 바꿔서 계산하면 편해.'
       :(A.d===1?'답은 자연수야. 다시 계산해 보자!':`약분까지 한 답의 분모는 ${A.d}이야. 다시 계산해 보자!`); }
