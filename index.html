@@ -92,6 +92,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
 #bsvg{width:100%;height:auto;border-radius:12px;margin:10px 0;background:#d9ecf5}
 #bsvg .part{transition:opacity .8s}
 #bfacts{font-size:17px;line-height:1.55}#bfacts p{margin:6px 0}#bfacts .new{color:var(--accent);font-weight:700}
+#bact{display:flex;gap:10px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 .ladt{font-size:.5em;margin-bottom:14px;color:#4a4a42}.ladt b{color:var(--accent)}
 .ladrow{display:flex;align-items:center;gap:22px}.ladbox{display:inline-block;width:64px;height:1.1em;border-bottom:2px solid #9a958a;margin-right:-8px}
 .ladp{font-size:1.5em;font-weight:200;margin:0 -10px 0 -4px}.ladsub{font-size:.34em;color:#7a766a;margin-top:12px}
@@ -124,7 +125,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
       <button id="undo">↩︎ 되돌리기</button>
       <button id="clearAll">🗑 모두 지우기</button>
       <button id="collectBtn">✋ 숫자 모으기</button>
-      <button id="buildBtn" aria-label="건축 보기">🧱 <b id="bk">0</b>/40</button>
+      <button id="buildBtn" aria-label="건축 보기">🏗 <b id="bk">-</b></button>
       <button id="next" class="primary">다음 문제</button>
     </div>
   </header>
@@ -172,11 +173,13 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
   </section>
   <footer>
     <details>
-      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.11</span></summary>
+      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.12</span></summary>
       <div class="dev">
-        <label>연산 <select id="op"><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option><option value="ladL">공약수로 나누어 최소공배수 (구몬식)</option><option value="ladG">공약수로 나누어 최대공약수 (구몬식)</option><option value="lad">공약수로 나누기 섞기 (구몬식)</option></select></label>
+        <label>연산 <select id="op"><option value="quest">오늘의 미션 (자동)</option><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option><option value="ladL">공약수로 나누어 최소공배수 (구몬식)</option><option value="ladG">공약수로 나누어 최대공약수 (구몬식)</option><option value="lad">공약수로 나누기 섞기 (구몬식)</option></select></label>
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
         <button id="reveal">정답 보기</button>
+        <button id="qNext">미션 다음 날로(테스트)</button>
+        <button id="qReset">미션 처음부터(테스트)</button>
         <button id="selftest">문제 생성기 자체 테스트</button>
         <button id="expAttempts">풀이 기록 내보내기</button>
         <label><input type="checkbox" id="autoCollect" checked> 맞힌 글씨 자동 수집</label>
@@ -188,9 +191,10 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
 
 <div id="build" hidden>
   <div class="bcard">
-    <div class="bhead"><b>🌉 세체니 쇠사슬 다리</b><span id="bcount"></span><button id="bclose" class="primary">닫기</button></div>
-    <svg id="bsvg" viewBox="0 0 480 250" role="img" aria-label="짓고 있는 다리"></svg>
+    <div class="bhead"><b id="btitle"></b><span id="bcount"></span></div>
+    <svg id="bsvg" viewBox="0 0 480 270" role="img" aria-label="짓고 있는 건물"></svg>
     <div id="bfacts"></div>
+    <div id="bact"></div>
   </div>
 </div>
 <script>
@@ -313,21 +317,81 @@ function ansText(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d)
 function ansHTML(v){ if(v.d===1) return String(v.n); const w=Math.floor(v.n/v.d), r=v.n%v.d; return (w?`<span class="mx"><b>${w}</b>${frHTML(r,v.d)}</span>`:frHTML(v.n,v.d)); }
 
 
-/* ---------- 건축 보상: 세체니 쇠사슬 다리 ---------- */
-const BKEY='jq_build_v1', BTOTAL=40, BT=[3,6,11,16,21,26,31,35,38,40];
-const FACTS=[[3,'헝가리의 수도 부다페스트에는 도나우 강이 흘러. 강의 서쪽은 부다, 동쪽은 페스트였어.'],
- [11,'세체니 쇠사슬 다리는 1849년에 완성된, 부다페스트 도나우 강 위의 첫 번째 영구 다리야.'],
- [21,'가운데 구간 길이가 202미터나 돼서, 지어질 때 세계에서 손꼽히게 긴 다리였대.'],
- [31,'설계는 영국 엔지니어 윌리엄 티어니 클라크, 공사 감독은 스코틀랜드 엔지니어 애덤 클라크가 했어. 둘은 친척이 아니래!'],
- [38,'다리 양쪽 끝에는 사자 조각이 있어. 1852년에 세웠대.'],
- [40,'다리가 완성됐어! 🎉 1873년에는 부다, 페스트, 오부다가 합쳐져서 지금의 부다페스트가 되었어.']];
-let bricks={}; try{ bricks=JSON.parse(localStorage.getItem(BKEY)||'{}'); }catch(e){ bricks={}; }
-const getBricks=()=>Math.min(BTOTAL,bricks[curWho()]||0);
-function award(k){ const w=curWho(), before=bricks[w]||0; bricks[w]=before+k;
-  try{ localStorage.setItem(BKEY,JSON.stringify(bricks)); }catch(e){}
-  updBuildChip(); const a=Math.min(before,BTOTAL), b=Math.min(bricks[w],BTOTAL);
-  return {gain:Math.max(0,b-a), total:b, unlocked:FACTS.filter(f=>a<f[0]&&b>=f[0]).length>0}; }
-function updBuildChip(){ $('bk').textContent=getBricks(); }
+/* ---------- 퀘스트: 도나우 언덕 마을 (주마다 건물 하나, 하루에 요소 하나) ---------- */
+const VILLAGE='도나우 언덕 마을', MISSION=10, QKEY='jq_quest_v1';
+const TYPE={mix:'소수 덧셈·뺄셈',f2:'분수와 소수 계산 (두 수)',ladL:'공약수로 나누어 최소공배수',f3:'분수와 소수 계산 (세 수)',fp:'괄호가 있는 분수와 소수 계산',ladG:'공약수로 나누어 최대공약수',all:'오늘의 종합 문제'};
+const DAYOPS=['mix','f2','ladL','f3','fp','ladG','all'];
+const ELEM={
+ church:[['기초 다지기','건물이 튼튼하게 서려면 바닥부터 단단해야 해.'],['벽 쌓기','벽돌을 한 층 한 층 쌓아 올려요.'],['스테인드글라스 창','색유리를 이어 붙여 빛이 예쁘게 들어오는 창을 달아요.'],['기둥과 아치','무거운 지붕을 받쳐 줄 기둥과 둥근 아치를 세워요.'],['지붕 얹기','비와 눈을 막아 주는 건물의 모자를 씌워요.'],['종탑과 돔','하늘 높이 종탑과 둥근 지붕을 올려요.'],['마무리 장식','마지막으로 장식을 달고 불을 밝혀요.']],
+ school:[['기초 다지기','아이들이 안전하게 공부할 학교의 바닥을 다져요.'],['벽 쌓기','교실이 될 벽을 쌓아요.'],['창문 달기','햇살이 가득 들어오는 창문을 달아요.'],['복도와 기둥','교실을 이어 줄 복도와 기둥을 세워요.'],['지붕 얹기','교실 위에 지붕을 얹어요.'],['시계탑','학교 한가운데에 시계탑을 세워요.'],['마무리 장식','운동장 쪽 문과 장식을 달아 학교를 열어요.']],
+ house:[['기초 다지기','포근한 집의 바닥을 다져요.'],['벽 쌓기','집의 벽을 쌓아요.'],['창문과 문','창문과 현관문을 달아요.'],['기둥과 처마','처마를 받쳐 줄 기둥을 세워요.'],['지붕 얹기','집에 지붕을 얹어요.'],['굴뚝','연기가 폴폴 나올 굴뚝을 세워요.'],['마무리 장식','화단과 장식으로 집을 꾸며요.']],
+ bridge:[['다리 기초','강 양쪽에 다리 기초를 세워요.'],['다리 탑','강 양쪽에 높은 탑을 세워요.'],['다리 상판','탑 사이에 길을 놓아요.'],['쇠사슬','탑에서 쇠사슬을 걸어요.'],['수직 줄','쇠사슬에서 길을 매다는 줄을 달아요.'],['사자 조각','다리 입구에 사자 조각을 세워요.'],['조명','밤에도 환하게 불을 밝혀요.']]};
+const BUILD=[{id:'church',name:'성당',week:'1주차'},{id:'school',name:'학교',week:'2주차'},{id:'house',name:'집',week:'3주차'},{id:'bridge',name:'세체니 쇠사슬 다리',week:'4주차'}];
+// 근거를 확인한 이야기만 넣는다 (성당: 위키백과 St. Stephen's Basilica / 다리: Széchenyi Chain Bridge). 학교·집은 확인된 이야기를 채우기 전까지 비워 둔다.
+const STORY={
+ church:['이슈트반 대성당은 1851년에 짓기 시작했어. 완성까지 50년이 넘게 걸렸대!','한 사람이 다 지은 게 아니야. 처음 설계한 힐트 요제프가 세상을 떠난 뒤 이블 미클로시가 계획을 고치고, 카우저 요제프가 마무리했어.','스테인드글라스는 색유리 조각을 이어 붙여 그림을 만드는 창이야.','이 성당은 1858년에 돔이 무너져서, 지어 놓은 부분을 허물고 처음부터 다시 쌓았대. 그래도 포기하지 않고 끝까지 지었어!','','남쪽 탑에는 헝가리에서 가장 큰 종이 있어. 무게가 9,250킬로그램이나 돼!','높이가 96미터로 국회의사당과 똑같아. 세속과 영적인 것이 똑같이 중요하다는 뜻을 담았대.'],
+ school:['','','','','','','마을 학교가 문을 열었어! 🎉'],
+ house:['','','','','','','마을에 포근한 새 집이 생겼어! 🎉'],
+ bridge:['헝가리의 수도 부다페스트에는 도나우 강이 흘러. 강의 서쪽은 부다, 동쪽은 페스트였어.','세체니 쇠사슬 다리는 1849년에 완성된, 부다페스트 도나우 강 위의 첫 번째 영구 다리야.','가운데 구간 길이가 202미터나 돼서, 지어질 때 세계에서 손꼽히게 긴 다리였대.','설계는 영국 엔지니어 윌리엄 티어니 클라크, 공사 감독은 스코틀랜드 엔지니어 애덤 클라크가 했어. 둘은 친척이 아니래!','','다리 양쪽 끝에는 사자 조각이 있어. 1852년에 세웠대.','다리가 완성됐어! 🎉 1873년에는 부다, 페스트, 오부다가 합쳐져서 지금의 부다페스트가 되었어.']};
+const SCENE_W=480, SCENE_H=270;
+const ART={
+ church:`<rect x="150" y="150" width="180" height="80" fill="#d8c7a6"/><rect x="128" y="96" width="44" height="134" fill="#cdb995"/><path d="M122 96h56l-28-40z" fill="#8c5a4a"/><rect x="308" y="96" width="44" height="134" fill="#cdb995"/><path d="M302 96h56l-28-40z" fill="#8c5a4a"/><rect x="204" y="118" width="72" height="40" fill="#d8c7a6"/><path d="M200 118a40 40 0 0 1 80 0z" fill="#9db6a0"/><rect x="236" y="68" width="8" height="22" fill="#b8a27a"/><path d="M240 62v-12M234 56h12" stroke="#b8a27a" stroke-width="3"/><path d="M222 230v-34a18 18 0 0 1 36 0v34z" fill="#6a4a3a"/><g fill="#6d9bd1"><rect x="168" y="168" width="14" height="26" rx="7"/><rect x="298" y="168" width="14" height="26" rx="7"/><rect x="134" y="120" width="12" height="22" rx="6"/><rect x="334" y="120" width="12" height="22" rx="6"/></g>`,
+ school:`<rect x="100" y="150" width="280" height="80" fill="#e0b98a"/><path d="M92 150h296l-30-34H122z" fill="#a85c4a"/><rect x="214" y="70" width="52" height="86" fill="#d8a878"/><path d="M208 70h64l-32-30z" fill="#a85c4a"/><circle cx="240" cy="96" r="14" fill="#fff8e6" stroke="#6a4a3a" stroke-width="3"/><path d="M240 96v-9M240 96l7 4" stroke="#6a4a3a" stroke-width="2.5"/><rect x="224" y="196" width="32" height="34" fill="#6a4a3a"/><g fill="#8cc0e0"><rect x="118" y="172" width="26" height="22"/><rect x="156" y="172" width="26" height="22"/><rect x="298" y="172" width="26" height="22"/><rect x="336" y="172" width="26" height="22"/></g>`,
+ house:`<rect x="150" y="150" width="180" height="80" fill="#f1e4c8"/><path d="M136 152h208l-104-62z" fill="#c9a24a"/><rect x="290" y="84" width="22" height="46" fill="#b0705a"/><rect x="226" y="184" width="30" height="46" rx="4" fill="#7a5238"/><g fill="#8cc0e0"><rect x="170" y="170" width="34" height="30"/><rect x="278" y="170" width="34" height="30"/></g><g fill="#d86a6a"><circle cx="120" cy="226" r="6"/><circle cx="134" cy="228" r="6"/><circle cx="348" cy="226" r="6"/><circle cx="362" cy="228" r="6"/></g>`};
+let imgOK={}; for(const b of ['church','school','house']){ const im=new Image(); im.onload=()=>{ imgOK[b]=true; }; im.src='img/'+b+'.webp'; }
+function artOf(id){ return imgOK[id]?`<image href="img/${id}.webp" x="0" y="0" width="${SCENE_W}" height="${SCENE_H}" preserveAspectRatio="xMidYMid slice"/>`:ART[id]; }
+function sceneSVG(id,P){ // 완성된 그림을 아래에서 위로 드러낸다(기초 → 벽 → 지붕). 아직 안 지은 부분은 흐린 설계도로 보인다
+  if(id==='bridge') return bridgeSVG(P*40);
+  const y=(SCENE_H*(1-P)).toFixed(1), art=artOf(id), bg=imgOK[id]?'':`<rect width="${SCENE_W}" height="${SCENE_H}" fill="url(#sk2)"/><polygon points="0,200 70,150 130,176 200,140 280,172 360,138 430,166 480,146 480,236 0,236" fill="#9dbb96" opacity=".55"/><rect y="230" width="${SCENE_W}" height="40" fill="#8db36f"/>`;
+  return `<defs><linearGradient id="sk2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bcdcee"/><stop offset="1" stop-color="#f6e7cf"/></linearGradient><clipPath id="rv"><rect x="0" y="${y}" width="${SCENE_W}" height="${(SCENE_H-y).toFixed(1)}"/></clipPath><filter id="bp"><feColorMatrix type="saturate" values="0"/></filter></defs>${bg}
+  <g opacity=".16" filter="url(#bp)">${art}</g><g clip-path="url(#rv)">${art}</g>${P>0&&P<1?`<line x1="0" x2="${SCENE_W}" y1="${y}" y2="${y}" stroke="#c8553d" stroke-width="2" stroke-dasharray="6 5" opacity=".7"/>`:''}`; }
+let quest={}; try{ quest=JSON.parse(localStorage.getItem(QKEY)||'{}'); }catch(e){ quest={}; }
+const saveQuest=()=>{ try{ localStorage.setItem(QKEY,JSON.stringify(quest)); }catch(e){} };
+const todayStr=()=>new Date().toLocaleDateString('sv');
+const qs=()=>quest[curWho()]||(quest[curWho()]={b:0,d:0,n:0,doneOn:''});
+const questOn=()=>$('op').value==='quest';
+const questDoneToday=()=>qs().doneOn===todayStr();
+const questFinished=()=>qs().b>=BUILD.length;
+const dayOp=()=>DAYOPS[qs().d];
+function effOp(){ if(!questOn()) return $('op').value;
+  if(questFinished()||questDoneToday()) return ['mix','f2','f3','fp','ladL','ladG'][Math.floor(Math.random()*6)];
+  const o=dayOp(); return o==='all'?['mix','f2','f3','fp','ladL','ladG'][Math.floor(Math.random()*6)]:o; }
+function updChip(){ const q=qs(); $('bk').textContent=!questOn()?'자유':questFinished()?'마을 완성':questDoneToday()?'✅ 완료':`${q.n}/${MISSION}`; }
+function questProblemDone(){ // 한 문제를 마칠 때마다 한 칸 (맞힌 횟수와 상관없이 — 벌 없음)
+  if(!questOn()||questFinished()||questDoneToday()) return {active:false,complete:false};
+  const q=qs(); q.n++; let complete=false, last=null;
+  if(q.n>=MISSION){ complete=true; last={b:q.b,d:q.d}; q.doneOn=todayStr(); q.n=0; q.d++; if(q.d>=DAYS){ q.d=0; q.b++; } }
+  saveQuest(); updChip(); return {active:true,complete,n:complete?MISSION:q.n,last}; }
+const DAYS=7;
+const pct=(b,d,n)=>Math.min(1,(d+n/MISSION)/DAYS);
+const jo=(w,a,b)=>{ const c=w.charCodeAt(w.length-1)-0xAC00; return w+((c>=0&&c<=11171&&c%28!==0)?a:b); };
+function showScene(o){ // o: {title, svgId, P, lines[], story, buttons:[[label,fn,cls]]}
+  $('btitle').textContent=o.title; $('bcount').textContent=o.sub||''; $('bsvg').innerHTML=sceneSVG(o.svgId,o.P);
+  $('bfacts').innerHTML=o.lines.map(l=>`<p>${l}</p>`).join('')+(o.story?`<p class="new">📖 ${o.story}</p>`:'');
+  const act=$('bact'); act.innerHTML=''; (o.buttons||[]).forEach(([lab,fn,cls])=>{ const b=document.createElement('button'); b.textContent=lab; if(cls) b.className=cls; b.onclick=()=>{ $('build').hidden=true; fn&&fn(); }; act.appendChild(b); });
+  $('build').hidden=false; }
+function showOpening(){
+  const q=qs(), B=BUILD[q.b], E=ELEM[B.id][q.d], op=dayOp(), resume=q.n>0;
+  showScene({title:`🏘 ${VILLAGE}`,sub:`${B.week} · ${B.name} ${q.d+1}/${DAYS}일째`,svgId:B.id,P:pct(q.b,q.d,q.n),
+    lines:[`📍 우리는 지금 <b>${VILLAGE}</b>에 있어. ${jo(B.name,'을','를')} 조금씩 짓고 있어.`,`🔨 오늘의 건축: <b>${E[0]}</b> — ${E[1]}`,`🧮 오늘의 재료: <b>${TYPE[op]}</b> 문제 ${MISSION}개${resume?` (지금까지 ${q.n}개 했어)`:''}`],
+    buttons:[['건축 시작! 🔨',()=>{ newProblem(); },'primary']]}); }
+function showClose(last){
+  const B=BUILD[last.b], E=ELEM[B.id][last.d], q=qs(), nextB=BUILD[q.b], story=STORY[B.id][last.d], bldDone=last.d===DAYS-1;
+  const tomorrow=questFinished()?'마을이 모두 완성됐어! 🎉':bldDone?`내일부터는 새 건물, <b>${jo(nextB.name,'을','를')}</b> 지어 볼까?`:`내일은 <b>${jo(ELEM[B.id][q.d][0],'을','를')}</b> 할 거야. 오늘의 재료는 <b>${TYPE[DAYOPS[q.d]]}</b>!`;
+  showScene({title:`✨ 오늘의 건축 완료!`,sub:`${B.week} · ${B.name} ${last.d+1}/${DAYS}일째`,svgId:B.id,P:pct(last.b,last.d+1,0),
+    lines:[`🎉 오늘 <b>${jo(E[0],'을','를')}</b> 마쳤어! ${jo(B.name,'이','가')} 한 걸음 더 완성됐어.`,bldDone?`🏁 ${jo(B.name,'이','가')} 완성됐어!`:'',`🌙 ${tomorrow}`].filter(Boolean),story:story||'',
+    buttons:[['오늘은 여기까지',null,'primary'],['더 풀어 볼래 (자유 연습)',()=>{ newProblem(); }]]}); }
+function showRest(){ const q=qs(), B=BUILD[Math.min(q.b,BUILD.length-1)];
+  showScene({title:`🏘 ${VILLAGE}`,sub:questFinished()?'마을 완성':`${B.week} · ${B.name}`,svgId:B.id,P:questFinished()?1:pct(q.b,q.d,0),
+    lines:[questFinished()?'마을이 모두 완성됐어! 🎉':'오늘의 건축은 끝났어. 내일 또 만나!'],
+    buttons:[['건축 보기 닫기',null,'primary'],['자유 연습',()=>{ newProblem(); }]]}); }
+let opened={}; function maybeOpening(){ const w=curWho(); if(!questOn()||opened[w]) return; opened[w]=true;
+  if(questFinished()||questDoneToday()) showRest(); else showOpening(); }
+function openBuildView(){ const q=qs(), B=BUILD[Math.min(q.b,BUILD.length-1)], done=questFinished()||questDoneToday();
+  const rows=ELEM[B.id].map((e,i)=>`${i<q.d||questFinished()?'✅':i===q.d?'🔨':'⬜'} ${i+1}일째 ${e[0]}`).join(' · ');
+  const stories=STORY[B.id].filter((t,i)=>t&&(i<q.d||questFinished())).map(t=>`<p>📖 ${t}</p>`).join('');
+  showScene({title:`🏘 ${VILLAGE}`,sub:`${B.week} · ${B.name}`,svgId:B.id,P:questFinished()?1:pct(q.b,q.d,done?0:q.n),lines:[rows],buttons:[['닫기',null,'primary']]});
+  $('bfacts').insertAdjacentHTML('beforeend',stories); }
 function bridgeSVG(n){
   const op=i=>{ const lo=i?BT[i-1]:0, v=(n-lo)/(BT[i]-lo); return Math.max(0,Math.min(1,v)).toFixed(2); };
   const chainY=x=>{ const t=(x-128)/(352-128); return (1-t)*(1-t)*72+2*(1-t)*t*170+t*t*72; };
@@ -348,15 +412,6 @@ function bridgeSVG(n){
   <g class="part" opacity="${op(7)}" stroke="#3a3a3a" stroke-width="1.5">${hang}</g>
   <g class="part" opacity="${op(8)}" fill="#d9a441"><rect x="22" y="152" width="14" height="12" rx="3"/><rect x="40" y="152" width="14" height="12" rx="3"/><rect x="426" y="152" width="14" height="12" rx="3"/><rect x="444" y="152" width="14" height="12" rx="3"/></g>
   <g class="part" opacity="${op(9)}" fill="#ffd96b">${lamp}</g>`; }
-function openBuild(newly){
-  const n=getBricks(); $('bsvg').innerHTML=bridgeSVG(n);
-  $('bcount').textContent=`벽돌 ${n} / ${BTOTAL}`+(n>=BTOTAL?' · 완성!':'');
-  const got=FACTS.filter(f=>n>=f[0]);
-  $('bfacts').innerHTML=got.length?got.map((f,i)=>`<p class="${newly&&i===got.length-1?'new':''}">📖 ${f[1]}</p>`).join(''):'<p>문제를 풀면 벽돌을 얻어. 벽돌이 쌓이면 다리 이야기도 열려!</p>';
-  $('build').hidden=false; }
-$('buildBtn').addEventListener('click',()=>openBuild(false));
-$('bclose').addEventListener('click',()=>{ $('build').hidden=true; });
-
 /* ---------- 필기 캔버스 ---------- */
 class Ink{
   constructor(canvas){this.c=canvas;this.ctx=canvas.getContext('2d');this.strokes=[];this.cur=null;this.pid=null;this.fit();}
@@ -451,7 +506,7 @@ function renderAny(){
   if(ex) $('problem').innerHTML=exprHTML(current.tree); else renderProblem(current);
 }
 function newProblem(){
-  const op=$('op').value;
+  const op=effOp(); updChip();
   current=(op==='gcd'||op==='lcm'||op==='gl'||op==='gl3'||op==='ladL'||op==='ladG'||op==='lad')?genGL(op):(op==='f2'||op==='f3'||op==='fp')?genFrac(op):Object.assign({kind:'dec',field:{type:'dec',int:INT_CELLS,dec:DEC_CELLS}},gen(op));
   extra=''; renderAny(); scratch.fit(); scratch.clear(); buildCells(); renderMsg(); resetSolve();
 }
@@ -462,6 +517,8 @@ document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',(
 $('undo').addEventListener('click',()=>{ if(lastInk)lastInk.undo(); });
 $('clearAll').addEventListener('click',()=>{ scratch.clear(); cellInks.forEach(i=>i.clear()); });
 $('next').addEventListener('click',newProblem);
+$('qNext').addEventListener('click',()=>{ qs().doneOn=''; saveQuest(); updChip(); opened={}; newProblem(); maybeOpening(); });
+$('qReset').addEventListener('click',()=>{ quest[curWho()]={b:0,d:0,n:0,doneOn:''}; saveQuest(); updChip(); opened={}; newProblem(); maybeOpening(); });
 $('op').addEventListener('change',newProblem);
 $('reveal').addEventListener('click',()=>{ extra='정답: '+ansTextCur()+(current.kind==='dec'?'  (끝자리 0 생략 표기. 4.5와 4.50 모두 정답 처리)':''); renderMsg(); });
 $('selftest').addEventListener('click',()=>{
@@ -585,7 +642,7 @@ async function loadModel(){
   const m=await (await fetch('model.json')).json();
   const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
   MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
-  try{ $('ver').textContent=`· 앱 v0.11 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
+  try{ $('ver').textContent=`· 앱 v0.12 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
   return MODEL;
 }
 function predict(img){ // img: 784개(0~255) -> 확률 10개
@@ -620,7 +677,7 @@ let ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null,rej:[]};
 function resetSolve(){ ps={n:0,rejects:0,done:false,t0:Date.now(),pending:null,rej:[]}; $('fb').innerHTML=''; $('next').classList.remove('pulse'); $('check').disabled=false; }
 function syncWho(){ $('whoBtn').textContent='👤 '+curWho(); }
 $('whoBtn').addEventListener('click',()=>{ $('who').value=curWho()==='아빠'?'진윤':'아빠'; $('who').dispatchEvent(new Event('change')); });
-$('who').addEventListener('change',()=>{ syncWho(); updBuildChip(); }); syncWho();
+$('who').addEventListener('change',()=>{ syncWho(); updChip(); maybeOpening(); }); syncWho();
 
 function readCells(){ // 정답 칸 5개 -> 각 칸의 읽은 숫자(빈 칸/낙서는 null)
   return cellInks.map(ink=>{
@@ -742,10 +799,10 @@ async function check(){
   const exp=ansTextCur(), v=judge(a);
   if(v==='correct'){
     ps.n++; logAttempt('correct',a,cells,exp,ps.n); autoCollect(a,cells); harvestRejected(a); finishDone();
-    const rw=award(ps.n===1?3:ps.n===2?2:1);
-    $('fb').innerHTML=`<div class="ok">정답! 🎉</div><div>${ps.n===1?'한 번에 맞혔어!':ps.n+'번째에 맞혔어!'}</div><div class="brick">🧱 +${rw.gain||0}</div>`+
+    const rw=questProblemDone();
+    $('fb').innerHTML=`<div class="ok">정답! 🎉</div><div>${ps.n===1?'한 번에 맞혔어!':ps.n+'번째에 맞혔어!'}</div>${rw.active?`<div class="brick">🧱 오늘의 건축 ${rw.n}/${MISSION}</div>`:''}`+
       (a.improper&&current.ans.d>1?`<div style="font-size:16px">대분수로 쓰면 <span class="ans">${ansHTMLCur()}</span> 이야</div>`:'')+todayLine();
-    if(rw.unlocked||todayCorrect()===10) setTimeout(()=>openBuild(rw.unlocked),900);
+    if(rw.complete) setTimeout(()=>showClose(rw.last),1400);
     return;
   }
   if(v==='unreduced'){ // 값은 맞다 -> 오답이 아니라 약분 안내 (시도 횟수는 쓰지 않는다)
@@ -761,7 +818,7 @@ async function check(){
 }
 function confirmYes(){
   const {a,cells,exp}=ps.pending; ps.pending=null; ps.n++; logAttempt('wrong',a,cells,exp,ps.n);
-  if(ps.n>=3){ finishDone(); const rw=award(1); $('fb').innerHTML=`<div class="hint">괜찮아, 어려웠지? 정답은 <span class="ans">${ansHTMLCur()}</span>이야.<br>풀이를 같이 확인해 보자.</div><div class="brick">🧱 +${rw.gain||0} 끝까지 해 봐서 벽돌 하나!</div>`+todayLine(); return; }
+  if(ps.n>=3){ finishDone(); const rw=questProblemDone(); $('fb').innerHTML=`<div class="hint">괜찮아, 어려웠지? 정답은 <span class="ans">${ansHTMLCur()}</span>이야.<br>풀이를 같이 확인해 보자.</div>${rw.active?`<div class="brick">🧱 끝까지 해 봐서 건축 ${rw.n}/${MISSION}</div>`:''}`+todayLine(); if(rw.complete) setTimeout(()=>showClose(rw.last),1800); return; }
   clearCells();
   $('fb').innerHTML=`<div class="hint">아깝다! 다시 해 보자 💪<br>${hintFor(ps.n,exp)}</div><div style="font-size:14px;color:#7a766a">남은 기회 ${3-ps.n}번</div>`;
 }
@@ -779,8 +836,9 @@ async function saveJSON(name,obj){
 $('expAttempts').addEventListener('click',()=>saveJSON('jinyoon-attempts-'+new Date().toISOString().slice(0,10)+'.json',{app:'jinyoon-quest',schema:1,exportedAt:new Date().toISOString(),attempts}));
 loadModel().catch(()=>{});
 
-updBuildChip(); scratch=new Ink($('scratch')); attach(scratch);
-newProblem();
+$('buildBtn').addEventListener('click',openBuildView);
+scratch=new Ink($('scratch')); attach(scratch);
+newProblem(); maybeOpening();
 
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 </script>
