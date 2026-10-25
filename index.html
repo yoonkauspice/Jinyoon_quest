@@ -199,7 +199,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
   </section>
   <footer>
     <details>
-      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.15</span></summary>
+      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.15b</span></summary>
       <div class="dev">
         <label>연산 <select id="op"><option value="quest">오늘의 미션 (자동)</option><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option><option value="ladL">공약수로 나누어 최소공배수 (구몬식)</option><option value="ladG">공약수로 나누어 최대공약수 (구몬식)</option><option value="lad">공약수로 나누기 섞기 (구몬식)</option></select></label>
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
@@ -365,13 +365,13 @@ const ART={
  church:`<rect x="150" y="150" width="180" height="80" fill="#d8c7a6"/><rect x="128" y="96" width="44" height="134" fill="#cdb995"/><path d="M122 96h56l-28-40z" fill="#c4472f"/><rect x="308" y="96" width="44" height="134" fill="#cdb995"/><path d="M302 96h56l-28-40z" fill="#c4472f"/><rect x="204" y="118" width="72" height="40" fill="#d8c7a6"/><path d="M200 118a40 40 0 0 1 80 0z" fill="#2f8a6c"/><rect x="236" y="68" width="8" height="22" fill="#b8a27a"/><path d="M240 62v-12M234 56h12" stroke="#b8a27a" stroke-width="3"/><path d="M222 230v-34a18 18 0 0 1 36 0v34z" fill="#6a4a3a"/><g fill="#6d9bd1"><rect x="168" y="168" width="14" height="26" rx="7"/><rect x="298" y="168" width="14" height="26" rx="7"/><rect x="134" y="120" width="12" height="22" rx="6"/><rect x="334" y="120" width="12" height="22" rx="6"/></g>`,
  school:`<rect x="100" y="150" width="280" height="80" fill="#e0b98a"/><path d="M92 150h296l-30-34H122z" fill="#a85c4a"/><rect x="214" y="70" width="52" height="86" fill="#d8a878"/><path d="M208 70h64l-32-30z" fill="#a85c4a"/><circle cx="240" cy="96" r="14" fill="#fff8e6" stroke="#6a4a3a" stroke-width="3"/><path d="M240 96v-9M240 96l7 4" stroke="#6a4a3a" stroke-width="2.5"/><rect x="224" y="196" width="32" height="34" fill="#6a4a3a"/><g fill="#8cc0e0"><rect x="118" y="172" width="26" height="22"/><rect x="156" y="172" width="26" height="22"/><rect x="298" y="172" width="26" height="22"/><rect x="336" y="172" width="26" height="22"/></g>`,
  house:`<rect x="150" y="150" width="180" height="80" fill="#f1e4c8"/><path d="M136 152h208l-104-62z" fill="#c9a24a"/><rect x="290" y="84" width="22" height="46" fill="#b0705a"/><rect x="226" y="184" width="30" height="46" rx="4" fill="#7a5238"/><g fill="#8cc0e0"><rect x="170" y="170" width="34" height="30"/><rect x="278" y="170" width="34" height="30"/></g><g fill="#d86a6a"><circle cx="120" cy="226" r="6"/><circle cx="134" cy="228" r="6"/><circle cx="348" cy="226" r="6"/><circle cx="362" cy="228" r="6"/></g>`};
-let imgOK={}; for(const b of ['church','school','house']){ const im=new Image(); im.onload=()=>{ imgOK[b]=true; }; im.src='img/'+b+'.webp'; }
-function artOf(id){ return imgOK[id]?`<image href="img/${id}.webp" x="0" y="0" width="${SCENE_W}" height="${SCENE_H}" preserveAspectRatio="xMidYMid slice"/>`:ART[id]; }
+function artOf(id){ // 임시 SVG 그림 위에 실제 이미지를 덮는다. 이미지가 늦게 도착해도 SVG <image>가 스스로 갱신되고, 없으면 임시 그림이 그대로 보인다
+  return (ART[id]||'')+`<image href="img/${id}.webp" x="0" y="0" width="${SCENE_W}" height="${SCENE_H}" preserveAspectRatio="xMidYMid slice"/>`; }
 function sceneSVG(id,P){ // 완성된 그림을 아래에서 위로 드러낸다(기초 → 벽 → 지붕). 아직 안 지은 부분은 흐린 설계도로 보인다
   if(id==='bridge') return bridgeSVG(P*40);
-  const y=(SCENE_H*(1-P)).toFixed(1), art=artOf(id), bg=imgOK[id]?'':`<rect width="${SCENE_W}" height="${SCENE_H}" fill="url(#sk2)"/><polygon points="0,200 70,150 130,176 200,140 280,172 360,138 430,166 480,146 480,236 0,236" fill="#8fb09a" opacity=".6"/><rect y="230" width="${SCENE_W}" height="40" fill="#5fae4a"/>`;
+  const y=(SCENE_H*(1-P)).toFixed(1), art=artOf(id), bg=`<rect width="${SCENE_W}" height="${SCENE_H}" fill="url(#sk2)"/><rect y="232" width="${SCENE_W}" height="40" fill="#8db36f"/>`;
   return `<defs><linearGradient id="sk2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b7c8ca"/><stop offset="1" stop-color="#f1ead6"/></linearGradient><clipPath id="rv"><rect x="0" y="${y}" width="${SCENE_W}" height="${(SCENE_H-y).toFixed(1)}"/></clipPath><filter id="bp"><feColorMatrix type="saturate" values="0"/></filter></defs>${bg}
-  <g opacity=".16" filter="url(#bp)">${art}</g><g clip-path="url(#rv)">${art}</g>${P>0&&P<1?`<line x1="0" x2="${SCENE_W}" y1="${y}" y2="${y}" stroke="#c8553d" stroke-width="2" stroke-dasharray="6 5" opacity=".7"/>`:''}`; }
+  <g opacity=".34" filter="url(#bp)">${art}</g><g clip-path="url(#rv)">${art}</g>${P>0&&P<1?`<line x1="0" x2="${SCENE_W}" y1="${y}" y2="${y}" stroke="#c8553d" stroke-width="2" stroke-dasharray="6 5" opacity=".7"/>`:''}`; }
 let quest={}; try{ quest=JSON.parse(localStorage.getItem(QKEY)||'{}'); }catch(e){ quest={}; }
 const saveQuest=()=>{ try{ localStorage.setItem(QKEY,JSON.stringify(quest)); }catch(e){} };
 const todayStr=()=>new Date().toLocaleDateString('sv');
@@ -688,7 +688,7 @@ async function loadModel(){
   const m=await (await fetch('model.json')).json();
   const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
   MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
-  try{ $('ver').textContent=`· 앱 v0.15 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
+  try{ $('ver').textContent=`· 앱 v0.15b · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
   return MODEL;
 }
 function predict(img){ // img: 784개(0~255) -> 확률 10개
