@@ -104,6 +104,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
 .expr .gltxt b{margin-left:.3em}
 .cbox{position:relative;height:200px;text-align:center;overflow:hidden}.cwal{position:absolute;left:0;right:0;bottom:44px;font-size:64px;animation:wpulse 1.1s ease 1.6s 2}.ccnt{position:absolute;left:0;right:0;bottom:6px;font-size:26px}.cplus{position:absolute;left:0;right:0;top:6px;font-size:34px;font-weight:800;color:#d9a441;animation:pplus .6s ease .1s both}.coin{position:absolute;top:-40px;font-size:30px;font-style:normal;opacity:0;animation:cdrop 1.1s ease-in both}
 @keyframes cdrop{0%{transform:translateY(0) rotate(0);opacity:0}12%{opacity:1}100%{transform:translateY(125px) rotate(420deg);opacity:0}}@keyframes pplus{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}@keyframes wpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+.bcard{position:relative}#bclose{position:absolute;top:8px;right:10px;width:44px;height:44px;min-height:0;border-radius:22px;font-size:22px;line-height:1;padding:0;background:#fff;border:2px solid #cfc7aa;color:#6b675c;z-index:5}.bhead{padding-right:54px}
 .brick{font-size:22px;font-weight:700;color:#a8642a;margin-top:4px}
 #buildBtn b{font-variant-numeric:tabular-nums}
 #build{position:fixed;inset:0;background:rgba(43,42,51,.55);display:flex;align-items:center;justify-content:center;z-index:50}
@@ -213,7 +214,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
   </section>
   <footer>
     <details>
-      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.19a</span></summary>
+      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.20</span></summary>
       <div class="dev">
         <label>연산 <select id="op"><option value="quest">오늘의 미션 (자동)</option><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option><option value="ladL">공약수로 나누어 최소공배수 (구몬식)</option><option value="ladG">공약수로 나누어 최대공약수 (구몬식)</option><option value="lad">공약수로 나누기 섞기 (구몬식)</option></select></label>
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
@@ -221,6 +222,9 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
         <button id="qNext">미션 다음 날로(테스트)</button>
         <button id="qReset">미션 처음부터(테스트)</button>
         <button id="qMerge">아빠 기록을 진윤이에게 합치기</button>
+        <button id="qBackup">💾 기록 백업(파일로 저장)</button>
+        <button id="qRestore">📂 기록 불러오기</button><input type="file" id="qFile" accept="application/json,.json" hidden>
+        <button id="qSet">🛠 진행·포린트 직접 입력(복구용)</button>
         <button id="qWipe">⚠ 전체 초기화 (포린트·이행표 포함)</button>
         <button id="selftest">문제 생성기 자체 테스트</button>
         <button id="expAttempts">풀이 기록 내보내기</button>
@@ -233,6 +237,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
 
 <div id="build" hidden>
   <div class="bcard">
+    <button id="bclose" aria-label="닫기" title="닫기">✕</button>
     <div class="bhead"><b id="btitle"></b><span id="bcount"></span></div>
     <div class="bbody">
       <svg id="bsvg" viewBox="0 0 480 270" role="img" aria-label="짓고 있는 건물"></svg>
@@ -763,6 +768,16 @@ $('undo').addEventListener('click',()=>{ if(lastInk)lastInk.undo(); });
 $('clearAll').addEventListener('click',()=>{ scratch.clear(); cellInks.forEach(i=>i.clear()); });
 $('next').addEventListener('click',newProblem);
 $('qNext').addEventListener('click',()=>{ qs().doneOn=''; saveQuest(); updChip(); opened={}; newProblem(); maybeOpening(); });
+function closeBuild(){ const q=qs(); if(!q.pro) q.pro=1; if(q.ib!==q.b&&!questFinished()) q.ib=q.b; saveQuest(); $('build').hidden=true; document.querySelectorAll('.cf').forEach(e=>e.remove());
+  if(questOn()&&!questFinished()&&!questDoneToday()&&ps.n===0&&!ps.done){ newProblem(); } updChip(); }
+$('bclose').addEventListener('click',closeBuild);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('build').hidden) closeBuild(); });
+$('qBackup').addEventListener('click',()=>{ const o={app:'jinyoon-quest',schema:1,exportedAt:new Date().toISOString(),quest,shop}; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:'application/json'})); a.download='jinyoon-quest-backup-'+todayStr()+'.json'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); });
+$('qRestore').addEventListener('click',()=>$('qFile').click());
+$('qFile').addEventListener('change',async()=>{ const f=$('qFile').files[0]; $('qFile').value=''; if(!f) return; try{ const o=JSON.parse(await f.text()); if(o.app!=='jinyoon-quest'||!o.quest) throw 0;
+  if(!confirm('백업 파일('+(o.exportedAt||'').slice(0,10)+')의 기록으로 바꿀까요? 지금 기록은 덮어써져요.')) return; for(const k of Object.keys(quest)) delete quest[k]; Object.assign(quest,o.quest); if(o.shop&&Array.isArray(o.shop.items)){ shop=o.shop; try{ localStorage.setItem(SHOPKEY,JSON.stringify(shop)); }catch(e){} } saveQuest(); updChip(); opened={}; alert('불러왔어요. 지갑 '+fmtFt(bal())); newProblem(); }catch(e){ alert('올바른 백업 파일이 아니에요.'); } });
+$('qSet').addEventListener('click',()=>{ const q=qs(); const b=parseInt(prompt('지금 짓는 건물 번호 (1=대성당 … 8=집)',String(q.b+1)),10); if(!(b>=1&&b<=BUILD.length)) return; const d=parseInt(prompt('오늘이 그 건물의 몇 일째? (1~7)',String(q.d+1)),10); if(!(d>=1&&d<=DAYS)) return; const ft=parseInt(prompt('모은 포린트(Ft)',String(q.ft)),10); if(!(ft>=0)) return;
+  if(!confirm(curWho()+': '+BUILD[b-1].name+' '+d+'일째, 포린트 '+fmtFt(ft)+'로 설정할까요?')) return; q.b=b-1; q.d=d-1; q.n=0; q.doneOn=''; q.ds=[]; q.ft=ft; q.pro=1; q.ib=q.b; q.mig=1; saveQuest(); updChip(); opened={}; newProblem(); alert('설정했어요. 지갑 '+fmtFt(bal())); });
 $('qMerge').addEventListener('click',()=>{ const A=quest['아빠'], J=quest['진윤']||(quest['진윤']={}); if(!A||(!A.ft&&!A.n&&!A.b&&!A.d&&!Object.keys(A.log||{}).length)){ alert('아빠 쪽에 합칠 기록이 없어요.'); return; }
   const sm=o=>o?`${(o.b||0)+1}번째 건물 ${(o.d||0)+1}일째, 모은 돈 ${fmtFt(o.ft||0)}, 이행 ${Object.keys(o.log||{}).length}일`:'기록 없음';
   if(!confirm('아빠 기록: '+sm(A)+'\n진윤 기록: '+sm(J)+'\n\n아빠 기록을 진윤이 기록에 합칠까요? (포린트·이행표는 더하고, 진행은 더 앞선 쪽을 따라요. 합친 뒤 아빠 기록은 비워져요)')) return;
@@ -898,7 +913,7 @@ async function loadModel(){
   const m=await (await fetch('model.json')).json();
   const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
   MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
-  try{ $('ver').textContent=`· 앱 v0.19a · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
+  try{ $('ver').textContent=`· 앱 v0.20 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
   return MODEL;
 }
 function predict(img){ // img: 784개(0~255) -> 확률 10개
@@ -1094,6 +1109,7 @@ loadModel().catch(()=>{});
 
 $('buildBtn').addEventListener('click',openBuildView); $('walletBtn').addEventListener('click',openWallet);
 scratch=new Ink($('scratch')); attach(scratch);
+try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
 newProblem(); maybeOpening();
 
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
