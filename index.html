@@ -214,7 +214,7 @@ main[data-mode=expr] .answer{flex:2 1 0;min-width:440px}
   </section>
   <footer>
     <details>
-      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.20</span></summary>
+      <summary>개발자 메뉴 (아버지용) <span id="ver">· 앱 v0.21</span></summary>
       <div class="dev">
         <label>연산 <select id="op"><option value="quest">오늘의 미션 (자동)</option><option value="+">덧셈</option><option value="-">뺄셈</option><option value="mix">섞기</option><option value="f2">분수·소수 2항 (가로식)</option><option value="f3">분수·소수 3항 (가로식)</option><option value="fp">분수·소수 괄호 (가로식)</option><option value="gcd">최대공약수 (2수)</option><option value="lcm">최소공배수 (2수)</option><option value="gl">공약수·공배수 섞기 (2수)</option><option value="gl3">공약수·공배수 섞기 (3수)</option><option value="ladL">공약수로 나누어 최소공배수 (구몬식)</option><option value="ladG">공약수로 나누어 최대공약수 (구몬식)</option><option value="lad">공약수로 나누기 섞기 (구몬식)</option></select></label>
         <label><input type="checkbox" id="allowMouse"> 마우스 허용(PC 테스트)</label>
@@ -504,7 +504,7 @@ function startDay(){ const q=qs(), steps=[];
 function showOpening(){
   const q=qs(), B=BUILD[q.b], E=ELEM[B.id][q.d], op=dayOp(), resume=q.n>0;
   showScene({say:resume?'다시 왔구나! 이어서 같이 지어 볼까?':`안녕, 건축가! 오늘의 의뢰를 알려 줄게.`,title:`🏘 ${VILLAGE}`,sub:`${dateKo(new Date())} · ${B.week} · ${B.name} ${q.d+1}/${DAYS}일째`,svgId:B.id,P:pct(q.b,q.d,q.n),me:'avatar_work',
-    lines:[`📍 우리는 지금 <b>${VILLAGE}</b>에 있어. 짓고 있는 건물: <b>${B.name}</b> (${B.en})`,`🔨 오늘의 건축: <b>${E[0]}</b> — ${E[1]}`,`🧮 오늘의 재료: <b>${TYPE[op]}</b> 문제 ${MISSION}개${resume?` (지금까지 ${q.n}개 했어)`:''}`,`💰 오늘 미션을 마치면 <b>${fmtFt(FT_DAYTOTAL)}</b>를 받아! (지갑 ${fmtFt(bal())})`],
+    lines:[`📍 우리는 지금 <b>${VILLAGE}</b>에 있어. 짓고 있는 건물: <b>${B.name}</b> (${B.en})`,`🔨 오늘의 건축: <b>${E[0]}</b> — ${E[1]}`,`🧮 오늘의 재료: <b>${TYPE[op]}</b> 문제 ${MISSION}개${resume?` (지금까지 ${q.n}개 했어)`:''}`,`💰 오늘 미션을 마치면 <b>${fmtFt(FT_DAYTOTAL)}</b>를 받아! (지갑 ${fmtFt(bal())})`+(isApp?'':'<br><span style="font-size:14px;color:#a8642a">⚠️ 홈 화면 아이콘으로 열어야 기록이 안전해요 (공유 → 홈 화면에 추가)</span>')],
     buttons:[['맡겨 줘! 🔨',()=>{ newProblem(); },'primary'],['🗺 여정',()=>showJourney()],['📒 기록·지갑',()=>openWallet()],['📅 이행표',()=>openWeek()]]}); }
 const PRAISE=['정말 잘했어!','멋지다, 건축가!','끝까지 해냈구나!','대단해, 집중력 최고!','오늘도 해냈다!','실력이 쑥쑥 자라고 있어!','와, 최고야!'];
 function fireworks(){ if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -589,8 +589,10 @@ function openWeek(off){ off=off||0; const q=qs(), now=new Date(); now.setHours(1
   ${shop.items.length?`<p style="margin:2px 0;color:#555">🎁 ${shop.items.map(it=>`${it.n} ${bal()>=it.p?'<b style="color:#1f7a5c">교환 가능!</b>':`(앞으로 ${fmtFt(it.p-bal())})`}`).join(' · ')}</p>`:''}
   <p style="margin:2px 0;color:#555">🎚 지금 난이도 ${'●'.repeat(effLevel()+1)}${'○'.repeat(4-effLevel())} <span style="font-size:13px">(건물 기준 ${BASE_LV[Math.min(q.b,7)]+1}단계${q.adj?`, 실력 조정 ${q.adj>0?'+':''}${q.adj}`:''})</span></p>
   ${wkn?`<p style="margin:2px 0;color:#555">📊 이 주 평균 정확도 <b>${Math.round(100*wacc/wkn)}%</b> · 속도 <b>${wsp/wkn<=1?'빠름':wsp/wkn<=1.6?'보통':'차근차근'}</b></p>`:''}
-  <p style="margin:2px 0;color:#555">📅 오늘은 ${dateKo(new Date())}</p></div>`;
-  showScene({say:'',title:'📒 기록·지갑',sub:curWho(),svgId:'market',P:1,lines:[],buttons:[['닫기',null,'primary'],['🗺 우리의 여정',()=>showJourney()],['🔒 부모님 상점',()=>pGate()]]});
+  <p style="margin:2px 0;color:#555">📅 오늘은 ${dateKo(new Date())}</p>
+  <p style="margin:2px 0;color:#555">💾 마지막 백업: <b>${bkDays()===null?'아직 없음':bkDays()===0?'오늘':bkDays()+'일 전'}</b></p>
+  ${isApp?'':'<p style="margin:8px 0 0;padding:8px 10px;background:#fff0d9;border:1px solid #e0b36a;border-radius:10px;color:#7a4a00;font-size:14px">⚠️ 지금은 인터넷 창(Safari)으로 열었어요. 며칠 쉬면 기록이 지워질 수 있어요. <b>홈 화면 아이콘</b>으로 열면 지켜져요. (공유 버튼 → 홈 화면에 추가)</p>'}</div>`;
+  showScene({say:'',title:'📒 기록·지갑',sub:curWho(),svgId:'market',P:1,lines:[],buttons:[['닫기',null,'primary'],['🗺 우리의 여정',()=>showJourney()],['💾 기록 백업',()=>$('qBackup').click()],['🔒 부모님 상점',()=>pGate()]]});
   $('bfacts').innerHTML=html; $('bsay').style.display='none';
   $('wprev').onclick=()=>openWeek(off-1); $('wnext').onclick=()=>openWeek(off+1); }
 /* ---------- 포린트 지갑과 부모님 상점 ---------- */
@@ -772,7 +774,7 @@ function closeBuild(){ const q=qs(); if(!q.pro) q.pro=1; if(q.ib!==q.b&&!questFi
   if(questOn()&&!questFinished()&&!questDoneToday()&&ps.n===0&&!ps.done){ newProblem(); } updChip(); }
 $('bclose').addEventListener('click',closeBuild);
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('build').hidden) closeBuild(); });
-$('qBackup').addEventListener('click',()=>{ const o={app:'jinyoon-quest',schema:1,exportedAt:new Date().toISOString(),quest,shop}; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:'application/json'})); a.download='jinyoon-quest-backup-'+todayStr()+'.json'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); });
+$('qBackup').addEventListener('click',()=>{ const o={app:'jinyoon-quest',schema:1,exportedAt:new Date().toISOString(),quest,shop}; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:'application/json'})); a.download='jinyoon-quest-backup-'+todayStr()+'.json'; document.body.appendChild(a); a.click(); try{ localStorage.setItem(BKKEY,new Date().toISOString()); }catch(e){} setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); });
 $('qRestore').addEventListener('click',()=>$('qFile').click());
 $('qFile').addEventListener('change',async()=>{ const f=$('qFile').files[0]; $('qFile').value=''; if(!f) return; try{ const o=JSON.parse(await f.text()); if(o.app!=='jinyoon-quest'||!o.quest) throw 0;
   if(!confirm('백업 파일('+(o.exportedAt||'').slice(0,10)+')의 기록으로 바꿀까요? 지금 기록은 덮어써져요.')) return; for(const k of Object.keys(quest)) delete quest[k]; Object.assign(quest,o.quest); if(o.shop&&Array.isArray(o.shop.items)){ shop=o.shop; try{ localStorage.setItem(SHOPKEY,JSON.stringify(shop)); }catch(e){} } saveQuest(); updChip(); opened={}; alert('불러왔어요. 지갑 '+fmtFt(bal())); newProblem(); }catch(e){ alert('올바른 백업 파일이 아니에요.'); } });
@@ -829,7 +831,9 @@ let samples=[], collectInk=null, target=null, collecting=false, colTimer=null;
 try{ samples=JSON.parse(localStorage.getItem(SKEY)||'[]'); }catch(e){ samples=[]; }
 function persist(){ try{ localStorage.setItem(SKEY,JSON.stringify(samples)); return true; }catch(e){ return false; } }
 function flash(t){ $('colMsg').textContent=t; clearTimeout(colTimer); colTimer=setTimeout(()=>{$('colMsg').textContent='';},3000); }
-const WHOKEY='jq_who_v1';
+const WHOKEY='jq_who_v1', BKKEY='jq_bk_v1';
+const isApp=(()=>{ try{ return navigator.standalone===true||matchMedia('(display-mode: standalone)').matches; }catch(e){ return false; } })();
+const bkDays=()=>{ try{ const t=localStorage.getItem(BKKEY); if(!t) return null; return Math.floor((Date.now()-new Date(t).getTime())/86400000); }catch(e){ return null; } };
 const curWho=()=>$('who').value;
 try{ const w=localStorage.getItem(WHOKEY); if(w==='아빠'||w==='진윤') $('who').value=w; }catch(e){}
 function counts(){ const c=Array(10).fill(0); samples.forEach(s=>{ if(s.who===curWho()) c[s.label]++; }); return c; }
@@ -913,7 +917,7 @@ async function loadModel(){
   const m=await (await fetch('model.json')).json();
   const dec=b=>{const bin=atob(b),a=new Int8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i)<<24>>24;return a;};
   MODEL={H:m.hidden,w1:dec(m.w1),s1:m.s1,b1:m.b1,w2:dec(m.w2),s2:m.s2,b2:m.b2};
-  try{ $('ver').textContent=`· 앱 v0.20 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
+  try{ $('ver').textContent=`· 앱 v0.21 · 모델 v${m.v} (${m.n_real}장)`; }catch(e){}
   return MODEL;
 }
 function predict(img){ // img: 784개(0~255) -> 확률 10개
